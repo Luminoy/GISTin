@@ -59,6 +59,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_STARTPNT, &CGISTinView::OnStartPNT)
 	ON_COMMAND(ID_ENDPNT, &CGISTinView::OnEndPNT)
 	ON_COMMAND(ID_TOPOCONSTRUCT, &CGISTinView::OnTopoConstruct)
+	ON_COMMAND(ID_TESTCASE, &CGISTinView::OnTestCase)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -309,6 +310,9 @@ void CGISTinView::OnEndPNT() {
 	OperateID = ENDPNT;
 }
 
+void CGISTinView::OnTestCase() {
+	OperateID = TESTCASE;
+}
 
 void CGISTinView::OnLButtonDown(UINT nFlags, CPoint point) 
 {
@@ -334,6 +338,7 @@ void CGISTinView::OnLButtonDown(UINT nFlags, CPoint point)
 
 void CGISTinView::OnLButtonUp(UINT nFlags, CPoint point) 
 {
+	int pid = -1;
 	int DX,DY;  PNT mpt1=ptMouse,mpt2={point.x,point.y};
     DX=(int)(mpt2.x-mpt1.x); DY=(int)(mpt2.y-mpt1.y);
     GetMapPoint(&mpt1); GetMapPoint(&mpt2);
@@ -367,6 +372,22 @@ void CGISTinView::OnLButtonUp(UINT nFlags, CPoint point)
 	case SELECT:   ::SetCursor(m_hSelect);break;   
 	case STARTPNT: break;
 	case ENDPNT:   break;
+	case TESTCASE:	
+		for (int i = 0; i < pointNumber; i++) {
+			if (abs(mpt2.x - PointData[i].x) < 1. && abs(mpt2.y - PointData[i].y) < 1.) {
+				pid = i;
+				break;
+			}
+		}
+		if (pid != -1) {
+			CString cstr;
+			cstr.AppendFormat("line count: %d\n", pTopoPointCollection[pid].nLineCount);
+			for (int j = 0; j < pTopoPointCollection[pid].nLineCount; j++) {
+				cstr.AppendFormat("%d: %d\n", j, pTopoPointCollection[pid].pConnectLineIDs[j]);
+			}
+			AfxMessageBox(cstr);
+		}
+		break;
     default: break;
 	}
 	CView::OnLButtonUp(nFlags, point);
@@ -1403,6 +1424,7 @@ void CGISTinView::OnShapefileOpen()
 		Point[i].x = PNTSet[i].x;
 		Point[i].y = PNTSet[i].y;
 		Point[i].ID = i;
+		mHashTable[make_pair(PNTSet[i].x, PNTSet[i].y)] =  i;
 	}
 
 	CString cstr;
@@ -1440,7 +1462,7 @@ bool CGISTinView::IsLineExist(int PID1, int PID2)
 
 int CGISTinView::GetPointIDByXY(double x, double y) {
 	for (int i = 0; i < pointNumber; i++) {
-		if (x == PointData[i].x && y == PointData[i].y) {
+		if (x == PointData[i].x && y == PointData[i].y) { //TODO: hansh table may be a better choice.
 			return i;
 		}
 	}
@@ -1450,10 +1472,10 @@ int CGISTinView::GetPointIDByXY(double x, double y) {
 void CGISTinView::PointLineTopoConstruct() {
 	pTopoPointCollection.Initialize(pointNumber);
 	for (int i = 0; i < m_nDeEdgeCount; i++)
-	{//可以考虑把点的x,y hash一下保存起来
+	{
 		DCEL *pdecl = m_pDelaunayEdge[i];
-		int idx1 = GetPointIDByXY(pdecl->e[0].oData->x, pdecl->e[0].oData->y);
-		int idx2 = GetPointIDByXY(pdecl->e[1].oData->x, pdecl->e[1].oData->y);
+		int idx1 = mHashTable[make_pair(pdecl->e[0].oData->x, pdecl->e[0].oData->y)];
+		int idx2 = mHashTable[make_pair(pdecl->e[1].oData->x, pdecl->e[1].oData->y)];
 		pTopoPointCollection.pTopoPoints[idx1].AddLineID(i);
 		pTopoPointCollection.pTopoPoints[idx2].AddLineID(i);
 	}
@@ -1776,7 +1798,6 @@ void CGISTinView::AccuSort(vector<long> &vec, long left, long right)
 
 void CGISTinView::OnPathConstruction()
 {
-	// TODO: 在此添加命令处理程序代码
 	//CreateTriPath();
 	for (int i = 0; i < pointNumber; i++) {
 		PointData[i].accu = 0;
@@ -1789,7 +1810,6 @@ void CGISTinView::OnPathConstruction()
 // 三角网加密
 void CGISTinView::OnTinDensify()
 {
-	// TODO: 在此添加命令处理程序代码
 	MyPoint *pNewPointData = NULL;
 	TRIANGLE *pNewTinHead = NULL;
 	long nNewStartPointID, nNewEndPointID;
@@ -1870,6 +1890,5 @@ void CGISTinView::OnTinDensify()
 
 void CGISTinView::OnTopoConstruct()
 {
-	// TODO: 在此添加命令处理程序代码
 	PointLineTopoConstruct();
 }

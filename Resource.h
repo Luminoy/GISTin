@@ -44,13 +44,15 @@
 #define ID_ENDPNT                       32818
 #define ID_SHAPEFILE_32820              32820
 #define ID_TOPOCONSTRUCT                32821
+#define ID_32822                        32822
+#define ID_TESTCASE                     32823
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        144
-#define _APS_NEXT_COMMAND_VALUE         32822
+#define _APS_NEXT_COMMAND_VALUE         32824
 #define _APS_NEXT_CONTROL_VALUE         1004
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

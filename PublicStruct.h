@@ -89,7 +89,7 @@ public:
 				return ;
 			}
 			MaxElementCount = MaxElementCount * 2;
-			memcpy(pConnectLineIDs, tmp, MaxElementCount);
+			memcpy(pConnectLineIDs, tmp, nLineCount * sizeof(int));  //bug的根源是 sizeof !
 			delete []tmp;
 		}
 		pConnectLineIDs[nLineCount++] = nLID;

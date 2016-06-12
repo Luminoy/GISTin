@@ -17,6 +17,7 @@
 #define   SELECT            1004
 #define	  STARTPNT          1005
 #define   ENDPNT            1006
+#define   TESTCASE          1007
 #define   ZoomFactor        2.0
 #define   _MAX_PNUM_anArc   100000
 #define   _MAX_ARCNUM_aMap  100000
@@ -29,10 +30,11 @@
 #include "delaunaytriangulation.h"
 #include "PublicStruct.h"
 
-
+#include <utility>
 #include <vector>
 #include <queue>
 #include <map>
+#include <unordered_map>
 #include <algorithm>
 #include <iostream>
 using namespace std;
@@ -82,6 +84,7 @@ private:
    MyPoint *pPathPoints;           // 存放结果数据点
    long nPathPointNum;             // 路径点个数
    TopoPointCollection pTopoPointCollection;//点线的拓扑信息
+   unordered_map<pair<double, double>, int> mHashTable;
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -204,6 +207,7 @@ public:
 	afx_msg void OnShapefileOpen();
 	afx_msg void OnStartPNT();
 	afx_msg void OnEndPNT();
+	afx_msg void OnTestCase();
 	afx_msg void OnTopoConstruct();
 };
 
