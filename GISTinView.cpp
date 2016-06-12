@@ -1424,7 +1424,8 @@ void CGISTinView::OnShapefileOpen()
 		Point[i].x = PNTSet[i].x;
 		Point[i].y = PNTSet[i].y;
 		Point[i].ID = i;
-		mHashTable[make_pair(PNTSet[i].x, PNTSet[i].y)] =  i;
+		Point2d p2d(PNTSet[i].x, PNTSet[i].y);
+		mHashTable[p2d] =  i;
 	}
 
 	CString cstr;
@@ -1471,11 +1472,13 @@ int CGISTinView::GetPointIDByXY(double x, double y) {
 
 void CGISTinView::PointLineTopoConstruct() {
 	pTopoPointCollection.Initialize(pointNumber);
+	unordered_map<Point2d, int>::iterator iter = mHashTable.begin();
 	for (int i = 0; i < m_nDeEdgeCount; i++)
 	{
 		DCEL *pdecl = m_pDelaunayEdge[i];
-		int idx1 = mHashTable[make_pair(pdecl->e[0].oData->x, pdecl->e[0].oData->y)];
-		int idx2 = mHashTable[make_pair(pdecl->e[1].oData->x, pdecl->e[1].oData->y)];
+		//iter = mHashTable.find(*(pdecl->e[0].oData));
+		int idx1 = (mHashTable.find(*(pdecl->e[0].oData)))->second; //稍微正确的使用方式
+		int idx2 = (mHashTable.find(*(pdecl->e[1].oData)))->second;
 		pTopoPointCollection.pTopoPoints[idx1].AddLineID(i);
 		pTopoPointCollection.pTopoPoints[idx2].AddLineID(i);
 	}

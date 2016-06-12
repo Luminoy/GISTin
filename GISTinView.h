@@ -30,6 +30,7 @@
 #include "delaunaytriangulation.h"
 #include "PublicStruct.h"
 
+#include <xhash>
 #include <utility>
 #include <vector>
 #include <queue>
@@ -84,7 +85,7 @@ private:
    MyPoint *pPathPoints;           // 存放结果数据点
    long nPathPointNum;             // 路径点个数
    TopoPointCollection pTopoPointCollection;//点线的拓扑信息
-   unordered_map<pair<double, double>, int> mHashTable;
+   unordered_map<Point2d, int, hash_func, hash_cmp> mHashTable;
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
