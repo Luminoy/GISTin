@@ -42,13 +42,15 @@
 #define ID_32816                        32816
 #define ID_STARTPNT                     32817
 #define ID_ENDPNT                       32818
+#define ID_SHAPEFILE_32820              32820
+#define ID_TOPOCONSTRUCT                32821
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        144
-#define _APS_NEXT_COMMAND_VALUE         32820
+#define _APS_NEXT_COMMAND_VALUE         32822
 #define _APS_NEXT_CONTROL_VALUE         1004
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

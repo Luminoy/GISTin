@@ -58,6 +58,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_SHAPEFILE_OPEN, &CGISTinView::OnShapefileOpen)
 	ON_COMMAND(ID_STARTPNT, &CGISTinView::OnStartPNT)
 	ON_COMMAND(ID_ENDPNT, &CGISTinView::OnEndPNT)
+	ON_COMMAND(ID_TOPOCONSTRUCT, &CGISTinView::OnTopoConstruct)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1425,6 +1426,39 @@ int CGISTinView::OnLeft(MyPoint P, MyPoint P1, MyPoint P2)
 		return 0;
 }
 
+bool CGISTinView::IsLineExist(int PID1, int PID2)
+{
+	Line* pLine = m_LineSet.pLines;
+	while (pLine != NULL) {
+		if ((pLine->ID1 == PID1 && pLine->ID2 == PID2) || (pLine->ID2 == PID1 && pLine->ID1 == PID2)) {
+			return true;
+		}
+		pLine = pLine->next;
+	}
+	return false;
+}
+
+int CGISTinView::GetPointIDByXY(double x, double y) {
+	for (int i = 0; i < pointNumber; i++) {
+		if (x == PointData[i].x && y == PointData[i].y) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void CGISTinView::PointLineTopoConstruct() {
+	pTopoPointCollection.Initialize(pointNumber);
+	for (int i = 0; i < m_nDeEdgeCount; i++)
+	{//可以考虑把点的x,y hash一下保存起来
+		DCEL *pdecl = m_pDelaunayEdge[i];
+		int idx1 = GetPointIDByXY(pdecl->e[0].oData->x, pdecl->e[0].oData->y);
+		int idx2 = GetPointIDByXY(pdecl->e[1].oData->x, pdecl->e[1].oData->y);
+		pTopoPointCollection.pTopoPoints[idx1].AddLineID(i);
+		pTopoPointCollection.pTopoPoints[idx2].AddLineID(i);
+	}
+}
+
 void CGISTinView::LineTopologyConstruct() {
 	//TriangleSet m_TriSet;
 	//Line* pLineColl = new Line[_MAX_ARCNUM_aMap];
@@ -1719,7 +1753,7 @@ void CGISTinView::CreateLinePath() {
 // 按照MyPoint的accu字段进行升序排序
 void CGISTinView::AccuSort(vector<long> &vec, long left, long right)
 {
-	int i, j, x, y, z;
+	int i, j;
 	i = left; j = right;
 	long mid = vec[(left + right) / 2];
 	double m_accu = Point[mid].accu;
@@ -1832,4 +1866,10 @@ void CGISTinView::OnTinDensify()
 	InvalidateRect(&Rect);
 
 
+}
+
+void CGISTinView::OnTopoConstruct()
+{
+	// TODO: 在此添加命令处理程序代码
+	PointLineTopoConstruct();
 }

@@ -81,7 +81,7 @@ private:
    TopoPoint *m_TopoPoint;       
    MyPoint *pPathPoints;           // 存放结果数据点
    long nPathPointNum;             // 路径点个数
-
+   TopoPointCollection pTopoPointCollection;//点线的拓扑信息
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -102,6 +102,8 @@ public:
 
    void CalPointDistance(vector<PNT>& PNTSet);
    bool IsLineExist(int PID1, int PID2);
+   int GetPointIDByXY(double x, double y);
+   void PointLineTopoConstruct();
    int  OnLeft(MyPoint P, MyPoint P1, MyPoint P2);
    void LineTopologyConstruct();
    void PointTopologyConstruct();
@@ -202,6 +204,7 @@ public:
 	afx_msg void OnShapefileOpen();
 	afx_msg void OnStartPNT();
 	afx_msg void OnEndPNT();
+	afx_msg void OnTopoConstruct();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp
