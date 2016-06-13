@@ -68,6 +68,7 @@ END_MESSAGE_MAP()
 
 vector<PNT> ReadShapefile(const char *filename, char *format) {
 	OGRRegisterAll();
+	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
 	OGRSFDriver* poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(format);
 	OGRDataSource *poDS = poDriver->Open(filename);
 	vector<PNT> PNTSet;
@@ -169,6 +170,7 @@ vector<PNT> ReadShapefile(const char *filename, char *format) {
 
 void SaveShapeFile(const char *filename, const char *format, MyPoint* pData, int count) {
 	::OGRRegisterAll();
+	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
 	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(format);
 	OGRDataSource *poDS = poDriver->CreateDataSource(filename);
 	OGRLayer *poLayer = poDS->CreateLayer("Points", NULL, wkbPoint);
@@ -1801,11 +1803,10 @@ void CGISTinView::CreateLinePath() {
 		//sort(quePointID.begin(), quePointID.end(), [=](long& ID1, long &ID2) {return PointData[ID1].accu <= PointData[ID2].accu; });
 		//quePointID.pop();
 	}
-
+	CString cstr;
 	clock_t t2 = clock();
 
 	int id = nEndPointID;
-	CString cstr;
 	int count = 1;
 	while (id != nStartPointID) {
 		count++;
