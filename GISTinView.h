@@ -35,6 +35,7 @@
 #include <vector>
 #include <queue>
 #include <map>
+#include <set>
 #include <unordered_map>
 #include <algorithm>
 #include <iostream>
@@ -55,6 +56,12 @@ struct hash_cmp {
 	}
 };
 
+struct MultisetLess {
+	bool operator() (MyPoint *P1, MyPoint *P2) const
+	{
+		return  P1->accu < P2->accu;
+	}
+};
 struct BlockTin
 {
 	vector<DCEL*> EdgeSet;
@@ -113,6 +120,7 @@ public:
    void CalcBoundGraph();
    void DrawGraph(CDC*pDC);
    void DrawPoint(CDC* pDC);
+   void DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count);
    void RefreshPoint(CDC *pDC,double x,double y, int radius = 2);
    void RefreshPoint(CDC *pDC, bool IsScreenPoint, double x, double y, COLOR PRGB, COLOR BRGB, int radius);
    void DrawArc(CDC* pDC);
@@ -121,16 +129,15 @@ public:
    bool isIn_Qujian(double x, double x1,double x2);  
 
    void CalPointDistance(vector<PNT>& PNTSet);
-   bool IsLineExist(int PID1, int PID2);
    int GetPointIDByXY(double x, double y);
    void PointLineTopoConstruct();
    int  OnLeft(MyPoint P, MyPoint P1, MyPoint P2);
-   void LineTopologyConstruct();
-   void PointTopologyConstruct();
-   void CreateTriPath();
+   //void LineTopologyConstruct();
+   //void PointTopologyConstruct();
+   //void CreateTriPath();
    int  ModifyPointData(int PID, PNT * pData);
    void CreateLinePath();
-   void AccuSort(vector<long>& vec, long left, long right);
+   void AccuSort(vector<int>& vec, int left, int right);
    void OnPathConstruction();
    void OnTinDensify();
 protected: // create from serialization only
@@ -140,6 +147,7 @@ protected: // create from serialization only
 // Attributes
 public:
 	CGISTinDoc* GetDocument();
+	// 为multiset重写的less比较函数
 
 // Operations
 private:   
@@ -226,6 +234,7 @@ public:
 	afx_msg void OnEndPNT();
 	afx_msg void OnTestCase();
 	afx_msg void OnTopoConstruct();
+	afx_msg void OnCreatePath();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

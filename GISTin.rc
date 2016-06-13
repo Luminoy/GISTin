@@ -131,6 +131,7 @@ BEGIN
         MENUITEM "打开",                          ID_SHAPEFILE_OPEN
         MENUITEM "保存",                          ID_SHAPEFILE_SAVE
         MENUITEM "建立拓扑关系",                      ID_TOPOCONSTRUCT
+        MENUITEM "路径生成",                        ID_CREATEPATH
     END
 END
 

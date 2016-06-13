@@ -60,6 +60,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_ENDPNT, &CGISTinView::OnEndPNT)
 	ON_COMMAND(ID_TOPOCONSTRUCT, &CGISTinView::OnTopoConstruct)
 	ON_COMMAND(ID_TESTCASE, &CGISTinView::OnTestCase)
+	ON_COMMAND(ID_CREATEPATH, &CGISTinView::OnCreatePath)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -639,8 +640,13 @@ void CGISTinView::DrawGraph(CDC*pDC)
 	
 	if (m_displayBinaryTree)
 	{
-	    DrawBinaryLeaf(pDC, rasterobject, TreeLeaf);
-	}	
+		DrawBinaryLeaf(pDC, rasterobject, TreeLeaf);
+	}
+	if (pPathPoints) 
+	{
+		DrawResultPath(pDC, pPathPoints, nPathPointNum);
+	}
+	
 }
 void CGISTinView::DrawDelaunay(CDC *pDC, vector<DCEL*> &dcelCollection, COLORREF color, int nWidth)
 {
@@ -812,6 +818,30 @@ void CGISTinView::DrawPoint(CDC* pDC)
 	pDC->SelectObject(OldPen);
 	pDC->SelectObject(pOldBrush);
 }
+
+void CGISTinView::DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count) {
+	if (pPathPoints == NULL || count == 0) {
+		return;
+	}
+	CPen Pen;
+	Pen.CreatePen(PS_SOLID, 2, colors[RED]);
+	CPen *pOldPen = pDC->SelectObject(&Pen);
+	PNT P1, P2;
+	P1.x = pPathPoints[0].x;
+	P1.y = pPathPoints[0].y;
+	GetScreenPoint(&P1);
+	for (int i = 1; i < count; i++) {
+		P2.x = pPathPoints[i].x;
+		P2.y = pPathPoints[i].y;
+		GetScreenPoint(&P2);
+		pDC->MoveTo(P1.x, P1.y);
+		pDC->LineTo(P2.x, P2.y);
+		P1.x = P2.x;
+		P1.y = P2.y;
+	}
+	pDC->SelectObject(pOldPen);
+}
+
 void CGISTinView::DrawArc(CDC* pDC)
 {
 	CPen  NewPen;
@@ -1493,17 +1523,6 @@ int CGISTinView::OnLeft(MyPoint P, MyPoint P1, MyPoint P2)
 		return 0;
 }
 
-bool CGISTinView::IsLineExist(int PID1, int PID2)
-{
-	Line* pLine = m_LineSet.pLines;
-	while (pLine != NULL) {
-		if ((pLine->ID1 == PID1 && pLine->ID2 == PID2) || (pLine->ID2 == PID1 && pLine->ID1 == PID2)) {
-			return true;
-		}
-		pLine = pLine->next;
-	}
-	return false;
-}
 
 int CGISTinView::GetPointIDByXY(double x, double y) {
 	for (int i = 0; i < pointNumber; i++) {
@@ -1516,11 +1535,13 @@ int CGISTinView::GetPointIDByXY(double x, double y) {
 
 void CGISTinView::PointLineTopoConstruct() {
 	// 建立查找表，unordered_map
+	clock_t t1 = clock();
 	for (int i = 0; i<pointNumber; i++)
 	{
 		Point2d p2d(Point[i].x, Point[i].y);
 		mHashTable.insert(make_pair(p2d, i));
 	}
+
 	pTopoPointCollection.Initialize(pointNumber);
 	for (int i = 0; i < m_nDeEdgeCount; i++)
 	{
@@ -1534,162 +1555,169 @@ void CGISTinView::PointLineTopoConstruct() {
 		pTopoPointCollection.pTopoPoints[idx1].AddLineID(i);
 		pTopoPointCollection.pTopoPoints[idx2].AddLineID(i);
 	}
+
+	clock_t t2 = clock();
+	double interval = (double)(t2 - t1) / 1000.;
+	CString cstr;
+	cstr.Format("topology construction: %.3lf s.\n", interval);
+	AfxMessageBox(cstr);
+
 }
 
-void CGISTinView::LineTopologyConstruct() {
-	//TriangleSet m_TriSet;
-	//Line* pLineColl = new Line[_MAX_ARCNUM_aMap];
-	Line *pNext, *pCurr;
-	pCurr = m_LineSet.pLines;
-	m_LineSet.pLines = NULL;
-	while (pCurr != NULL) {
-		pNext = pCurr->next;
-		delete pCurr;
-		pCurr = pNext;
-	}
-	long count = 0;
-	Line *LineHead, *LineRear;
-	LineHead = LineRear = NULL;
-	for (TRIANGLE *t = tinHead; t != NULL; t = t->next) {
-		// 先判断ID1、ID2组成的边是否已经存在(已存在的边则不用再次建立拓扑关系)
-		if (!IsLineExist(t->ID1, t->ID2)) {
-			Line* pLine = new Line;
-			pLine->LID = count++;
-			pLine->ID1 = t->ID1;
-			pLine->ID2 = t->ID2;
-			//判断顶点ID3是否在顶点ID1、ID2组成的直线的左边，-1为左，1为右
-			if (OnLeft(PointData[t->ID3], PointData[t->ID1], PointData[t->ID2]) == -1) {
-				pLine->LeftTri = t->g_SeqNum;
-				pLine->RightTri = t->p3tin ? t->p3tin->g_SeqNum : -1;
-			}
-			else
-			{
-				pLine->RightTri = t->g_SeqNum;
-				pLine->LeftTri = t->p3tin ? t->p3tin->g_SeqNum : -1;
-			}
-			if (count == 1) {
-				m_LineSet.pLines = pLine;
-				LineRear = pLine;
-			}
-			else
-			{
-				LineRear->next = pLine;
-				LineRear = LineRear->next;
-			}
-
-
-		}
-		//判断顶点ID2是否在顶点ID1、ID3组成的直线的左边，-1为左，1为右
-		if (!IsLineExist(t->ID1, t->ID3)) {
-			Line* pLine = new Line;
-			pLine->LID = count++;
-			pLine->ID1 = t->ID1;
-			pLine->ID2 = t->ID3;
-			if (OnLeft(PointData[t->ID2], PointData[t->ID1], PointData[t->ID3]) == -1) {
-				pLine->LeftTri = t->g_SeqNum;
-				pLine->RightTri = t->p2tin ? t->p2tin->g_SeqNum : -1;
-			}
-			else
-			{
-				pLine->RightTri = t->g_SeqNum;
-				pLine->LeftTri = t->p2tin ? t->p2tin->g_SeqNum : -1;
-			}
-			LineRear->next = pLine;
-			LineRear = LineRear->next;
-		}
-		//判断顶点ID1是否在顶点ID2、ID3组成的直线的左边，-1为左，1为右
-		if (!IsLineExist(t->ID2, t->ID3)) {
-			Line* pLine = new Line;
-			pLine->LID = count++;
-			pLine->ID1 = t->ID2;
-			pLine->ID2 = t->ID3;
-			if (OnLeft(PointData[t->ID1], PointData[t->ID2], PointData[t->ID3]) == -1) {
-				pLine->LeftTri = t->g_SeqNum;
-				pLine->RightTri = t->p1tin ? t->p1tin->g_SeqNum : -1;
-			}
-			else
-			{
-				pLine->RightTri = t->g_SeqNum;
-				pLine->LeftTri = t->p1tin ? t->p1tin->g_SeqNum : -1;
-			}
-			LineRear->next = pLine;
-			LineRear = LineRear->next;
-		}
-		//memcpy(pLineColl + count - 3, pLine, 3 * sizeof(Line));
-	}
-	m_LineSet.nLineNum = count;
-}
-
-void CGISTinView::PointTopologyConstruct() {
-	if (m_TopoPoint) {
-		delete[]m_TopoPoint;
-	}
-	m_TopoPoint = new TopoPoint[pointNumber];
-	Line* pLineHead = m_LineSet.pLines;
-	while (pLineHead != NULL) {
-		//CString cstr;
-		//cstr.Format("%d\n", pLineHead->LID);
-		//AfxMessageBox(cstr);
-		m_TopoPoint[pLineHead->ID1].pConnectLineIDs[m_TopoPoint[pLineHead->ID1].nLineCount++] = pLineHead->LID;
-		m_TopoPoint[pLineHead->ID2].pConnectLineIDs[m_TopoPoint[pLineHead->ID2].nLineCount++] = pLineHead->LID;
-		pLineHead = pLineHead->next;
-	}
-}
-
-void CGISTinView::CreateTriPath()
-{
-	//if (nStartTri == -1 || nEndTri == -1) {
-	//	AfxMessageBox("未设置起点或终点！");
-	//	return;
-	//}
-
-	//std::queue<TRIANGLE*> queTri;
-
-	//for (TRIANGLE *tri = tinHead; tri != NULL; tri = tri->next) {
-	//	tri->visited = 0;
-	//	if (tri->g_SeqNum == nStartTri) {
-	//		pStartTri = tri;
-	//	}
-	//	if (tri->g_SeqNum == nEndTri) {
-	//		pEndTri = tri;
-	//	}
-	//}
-	//// 最短路径计算
-	//queTri.push(pStartTri);
-	//while (queTri.size() != 0) {
-	//	TRIANGLE *T = queTri.front();
-	//	T->visited = 1;
-	//	if (T->p1tin && !T->p1tin->visited) {
-	//		double accu = T->accu + (T->weight + T->p1tin->weight) / 2;
-	//		if (!T->p1tin->parentTri || accu < T->p1tin->accu) {
-	//			T->p1tin->accu = accu;
-	//			T->p1tin->parentTri = T;
-	//		}
-	//		queTri.push(T->p1tin);
-	//	}
-	//	if (T->p2tin && !T->p2tin->visited) {
-	//		double accu = T->accu + (T->weight + T->p2tin->weight) / 2;
-	//		if (!T->p2tin->parentTri || accu < T->p2tin->accu) {
-	//			T->p2tin->accu = accu;
-	//			T->p2tin->parentTri = T;
-	//		}
-	//		queTri.push(T->p2tin);
-	//	}
-	//	if (T->p3tin && !T->p3tin->visited) {
-	//		double accu = T->accu + (T->weight + T->p3tin->weight) / 2;
-	//		if (!T->p3tin->parentTri || accu < T->p3tin->accu) {
-	//			T->p3tin->accu = accu;
-	//			T->p3tin->parentTri = T;
-	//		}
-	//		queTri.push(T->p3tin);
-	//	}
-	//	queTri.pop();
-	//}
-
-	//CRect Rect;
-	//GetClientRect(&Rect);
-	//InvalidateRect(&Rect);
-}
+//void CGISTinView::LineTopologyConstruct() {
+//	//TriangleSet m_TriSet;
+//	//Line* pLineColl = new Line[_MAX_ARCNUM_aMap];
+//	Line *pNext, *pCurr;
+//	pCurr = m_LineSet.pLines;
+//	m_LineSet.pLines = NULL;
+//	while (pCurr != NULL) {
+//		pNext = pCurr->next;
+//		delete pCurr;
+//		pCurr = pNext;
+//	}
+//	long count = 0;
+//	Line *LineHead, *LineRear;
+//	LineHead = LineRear = NULL;
+//	for (TRIANGLE *t = tinHead; t != NULL; t = t->next) {
+//		// 先判断ID1、ID2组成的边是否已经存在(已存在的边则不用再次建立拓扑关系)
+//		if (!IsLineExist(t->ID1, t->ID2)) {
+//			Line* pLine = new Line;
+//			pLine->LID = count++;
+//			pLine->ID1 = t->ID1;
+//			pLine->ID2 = t->ID2;
+//			//判断顶点ID3是否在顶点ID1、ID2组成的直线的左边，-1为左，1为右
+//			if (OnLeft(PointData[t->ID3], PointData[t->ID1], PointData[t->ID2]) == -1) {
+//				pLine->LeftTri = t->g_SeqNum;
+//				pLine->RightTri = t->p3tin ? t->p3tin->g_SeqNum : -1;
+//			}
+//			else
+//			{
+//				pLine->RightTri = t->g_SeqNum;
+//				pLine->LeftTri = t->p3tin ? t->p3tin->g_SeqNum : -1;
+//			}
+//			if (count == 1) {
+//				m_LineSet.pLines = pLine;
+//				LineRear = pLine;
+//			}
+//			else
+//			{
+//				LineRear->next = pLine;
+//				LineRear = LineRear->next;
+//			}
+//
+//
+//		}
+//		//判断顶点ID2是否在顶点ID1、ID3组成的直线的左边，-1为左，1为右
+//		if (!IsLineExist(t->ID1, t->ID3)) {
+//			Line* pLine = new Line;
+//			pLine->LID = count++;
+//			pLine->ID1 = t->ID1;
+//			pLine->ID2 = t->ID3;
+//			if (OnLeft(PointData[t->ID2], PointData[t->ID1], PointData[t->ID3]) == -1) {
+//				pLine->LeftTri = t->g_SeqNum;
+//				pLine->RightTri = t->p2tin ? t->p2tin->g_SeqNum : -1;
+//			}
+//			else
+//			{
+//				pLine->RightTri = t->g_SeqNum;
+//				pLine->LeftTri = t->p2tin ? t->p2tin->g_SeqNum : -1;
+//			}
+//			LineRear->next = pLine;
+//			LineRear = LineRear->next;
+//		}
+//		//判断顶点ID1是否在顶点ID2、ID3组成的直线的左边，-1为左，1为右
+//		if (!IsLineExist(t->ID2, t->ID3)) {
+//			Line* pLine = new Line;
+//			pLine->LID = count++;
+//			pLine->ID1 = t->ID2;
+//			pLine->ID2 = t->ID3;
+//			if (OnLeft(PointData[t->ID1], PointData[t->ID2], PointData[t->ID3]) == -1) {
+//				pLine->LeftTri = t->g_SeqNum;
+//				pLine->RightTri = t->p1tin ? t->p1tin->g_SeqNum : -1;
+//			}
+//			else
+//			{
+//				pLine->RightTri = t->g_SeqNum;
+//				pLine->LeftTri = t->p1tin ? t->p1tin->g_SeqNum : -1;
+//			}
+//			LineRear->next = pLine;
+//			LineRear = LineRear->next;
+//		}
+//		//memcpy(pLineColl + count - 3, pLine, 3 * sizeof(Line));
+//	}
+//	m_LineSet.nLineNum = count;
+//}
+//
+//void CGISTinView::PointTopologyConstruct() {
+//	if (m_TopoPoint) {
+//		delete[]m_TopoPoint;
+//	}
+//	m_TopoPoint = new TopoPoint[pointNumber];
+//	Line* pLineHead = m_LineSet.pLines;
+//	while (pLineHead != NULL) {
+//		//CString cstr;
+//		//cstr.Format("%d\n", pLineHead->LID);
+//		//AfxMessageBox(cstr);
+//		m_TopoPoint[pLineHead->ID1].pConnectLineIDs[m_TopoPoint[pLineHead->ID1].nLineCount++] = pLineHead->LID;
+//		m_TopoPoint[pLineHead->ID2].pConnectLineIDs[m_TopoPoint[pLineHead->ID2].nLineCount++] = pLineHead->LID;
+//		pLineHead = pLineHead->next;
+//	}
+//}
+//
+//void CGISTinView::CreateTriPath()
+//{
+//	if (nStartTri == -1 || nEndTri == -1) {
+//		AfxMessageBox("未设置起点或终点！");
+//		return;
+//	}
+//
+//	std::queue<TRIANGLE*> queTri;
+//
+//	for (TRIANGLE *tri = tinHead; tri != NULL; tri = tri->next) {
+//		tri->visited = 0;
+//		if (tri->g_SeqNum == nStartTri) {
+//			pStartTri = tri;
+//		}
+//		if (tri->g_SeqNum == nEndTri) {
+//			pEndTri = tri;
+//		}
+//	}
+//	// 最短路径计算
+//	queTri.push(pStartTri);
+//	while (queTri.size() != 0) {
+//		TRIANGLE *T = queTri.front();
+//		T->visited = 1;
+//		if (T->p1tin && !T->p1tin->visited) {
+//			double accu = T->accu + (T->weight + T->p1tin->weight) / 2;
+//			if (!T->p1tin->parentTri || accu < T->p1tin->accu) {
+//				T->p1tin->accu = accu;
+//				T->p1tin->parentTri = T;
+//			}
+//			queTri.push(T->p1tin);
+//		}
+//		if (T->p2tin && !T->p2tin->visited) {
+//			double accu = T->accu + (T->weight + T->p2tin->weight) / 2;
+//			if (!T->p2tin->parentTri || accu < T->p2tin->accu) {
+//				T->p2tin->accu = accu;
+//				T->p2tin->parentTri = T;
+//			}
+//			queTri.push(T->p2tin);
+//		}
+//		if (T->p3tin && !T->p3tin->visited) {
+//			double accu = T->accu + (T->weight + T->p3tin->weight) / 2;
+//			if (!T->p3tin->parentTri || accu < T->p3tin->accu) {
+//				T->p3tin->accu = accu;
+//				T->p3tin->parentTri = T;
+//			}
+//			queTri.push(T->p3tin);
+//		}
+//		queTri.pop();
+//	}
+//
+//	CRect Rect;
+//	GetClientRect(&Rect);
+//	InvalidateRect(&Rect);
+//}
 
 int CGISTinView::ModifyPointData(int PID, PNT *pData) {
 	if (PID == -1) {
@@ -1719,61 +1747,64 @@ int CGISTinView::ModifyPointData(int PID, PNT *pData) {
 }
 
 void CGISTinView::CreateLinePath() {
-	//OnTinGenerate();
-	LineTopologyConstruct();
-	PointTopologyConstruct();
-
-
-	std::vector<long> quePointID;
-	quePointID.push_back(nStartPointID);
+	clock_t t1 = clock();
+	std::multiset<MyPoint*, MultisetLess> quePointID;
+	quePointID.insert(&PointData[nStartPointID]);
 	PointData[nStartPointID].visited = true;
 	while (!quePointID.empty()) {
-		long PID = quePointID[0]; //TODO:应该选取最小累积量的节点
+		Point2d pt((*quePointID.begin())->x, (*quePointID.begin())->y);
+		int PID = mHashTable[pt]; //TODO:应该选取最小累积量的节点
 		TopoPoint& CurrPoint = pTopoPointCollection[PID];
 		for (int i = 0; i < CurrPoint.nLineCount; i++) {
 			long LID = CurrPoint.pConnectLineIDs[i];
-			DCEL *pLine = m_pDelaunayEdge[i];
-			/*if (pLine != NULL) {
-				if (!PointData[pLine->ID1].visited) {
-					long dis = sqrt(pow(PointData[pLine->ID1].x - PointData[PID].x, 2) + pow(PointData[pLine->ID1].y - PointData[PID].y, 2));
-					if (PointData[pLine->ID1].parent == -1) {
-						PointData[pLine->ID1].parent = PID;
-						PointData[pLine->ID1].accu = dis + PointData[PID].accu;
-						quePointID.push_back(pLine->ID1);
+			DCEL *pLine = m_pDelaunayEdge[LID];
+			if (pLine != NULL) {
+				Point2d P0(pLine->e[0].oData->x, pLine->e[0].oData->y);
+				Point2d P1(pLine->e[1].oData->x, pLine->e[1].oData->y);
+				int idx1 = mHashTable[P0];
+				int idx2 = mHashTable[P1];
+				if (!PointData[idx1].visited) {
+					double dis = sqrt(pow(PointData[idx1].x - PointData[PID].x, 2) + pow(PointData[idx1].y - PointData[PID].y, 2));
+					if (PointData[idx1].parent == -1) {
+						PointData[idx1].parent = PID;
+						PointData[idx1].accu = dis + PointData[PID].accu;
+						quePointID.insert(&PointData[idx1]);
 					}
-					else if (PointData[pLine->ID1].accu > dis + PointData[PID].accu) {
-						PointData[pLine->ID1].accu = dis + PointData[PID].accu;
-						PointData[pLine->ID1].parent = PID;
+					else if (PointData[idx1].accu > dis + PointData[PID].accu) {
+						PointData[idx1].accu = dis + PointData[PID].accu;
+						PointData[idx1].parent = PID;
 					}
 				}
-				if (!PointData[pLine->ID2].visited) {
-					long dis = sqrt(pow(PointData[pLine->ID2].x - PointData[PID].x, 2) + pow(PointData[pLine->ID2].y - PointData[PID].y, 2));
-					if (PointData[pLine->ID2].parent == -1) {
-						PointData[pLine->ID2].parent = PID;
-						PointData[pLine->ID2].accu = dis + PointData[PID].accu;
-						quePointID.push_back(pLine->ID2);
+				if (!PointData[idx2].visited) {
+					double dis = sqrt(pow(PointData[idx2].x - PointData[PID].x, 2) + pow(PointData[idx2].y - PointData[PID].y, 2));
+					if (PointData[idx2].parent == -1) {
+						PointData[idx2].parent = PID;
+						PointData[idx2].accu = dis + PointData[PID].accu;
+						quePointID.insert(&PointData[idx2]);
 					}
-					else if (PointData[pLine->ID2].accu > dis + PointData[PID].accu) {
-						PointData[pLine->ID2].accu = dis + PointData[PID].accu;
-						PointData[pLine->ID2].parent = PID;
+					else if (PointData[idx2].accu > dis + PointData[PID].accu) {
+						PointData[idx2].accu = dis + PointData[PID].accu;
+						PointData[idx2].parent = PID;
 					}
 				}
 
-			}*/
+			}
 		}
 
 		PointData[PID].visited = true;
 		quePointID.erase(quePointID.begin());
-		if (quePointID.size() >= 2) {
-			AccuSort(quePointID, 0, quePointID.size() - 1);
-		}
+		//if (quePointID.size() >= 2) {
+		//	AccuSort(quePointID, 0, quePointID.size() - 1);
+		//}
 
 		//sort(quePointID.begin(), quePointID.end(), AccuCompare);
 		//sort(quePointID.begin(), quePointID.end(), [=](long& ID1, long &ID2) {return PointData[ID1].accu <= PointData[ID2].accu; });
 		//quePointID.pop();
 	}
 
-	long id = nEndPointID;
+	clock_t t2 = clock();
+
+	int id = nEndPointID;
 	CString cstr;
 	int count = 1;
 	while (id != nStartPointID) {
@@ -1804,11 +1835,11 @@ void CGISTinView::CreateLinePath() {
 }
 
 // 按照MyPoint的accu字段进行升序排序
-void CGISTinView::AccuSort(vector<long> &vec, long left, long right)
+void CGISTinView::AccuSort(vector<int> &vec, int left, int right)
 {
 	int i, j;
 	i = left; j = right;
-	long mid = vec[(left + right) / 2];
+	int mid = vec[(left + right) / 2];
 	double m_accu = Point[mid].accu;
 	do {
 		while ((PointData[vec[i]].accu < m_accu) && (i < right)) i++;
@@ -1922,4 +1953,15 @@ void CGISTinView::OnTinDensify()
 void CGISTinView::OnTopoConstruct()
 {
 	PointLineTopoConstruct();
+}
+
+
+void CGISTinView::OnCreatePath()
+{
+	for (int i = 0; i < pointNumber; i++) {
+		PointData[i].accu = 0;
+		PointData[i].parent = -1;
+		PointData[i].visited = false;
+	}
+	CreateLinePath();
 }
