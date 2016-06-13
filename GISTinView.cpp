@@ -339,6 +339,7 @@ void CGISTinView::OnLButtonDown(UINT nFlags, CPoint point)
 void CGISTinView::OnLButtonUp(UINT nFlags, CPoint point) 
 {
 	int pid = -1;
+	Point2d p2d;
 	int DX,DY;  PNT mpt1=ptMouse,mpt2={point.x,point.y};
     DX=(int)(mpt2.x-mpt1.x); DY=(int)(mpt2.y-mpt1.y);
     GetMapPoint(&mpt1); GetMapPoint(&mpt2);
@@ -370,11 +371,27 @@ void CGISTinView::OnLButtonUp(UINT nFlags, CPoint point)
 		           xcenter-=mpt2.x-mpt1.x; ycenter-=mpt2.y-mpt1.y; 
 		           InvalidateRect(&Rect); break;
 	case SELECT:   ::SetCursor(m_hSelect);break;   
-	case STARTPNT: break;
-	case ENDPNT:   break;
+	case STARTPNT: 
+		if (!pStartPoint) {
+			pStartPoint = new PNT;
+		}
+		pStartPoint->x = point.x;
+		pStartPoint->y = point.y;
+		GetMapPoint(pStartPoint);
+		nStartPointID = ModifyPointData(nStartPointID, pStartPoint);
+		InvalidateRect(&Rect); break;
+	case ENDPNT:
+		if (!pEndPoint) {
+			pEndPoint = new PNT;
+		}
+		pEndPoint->x = point.x;
+		pEndPoint->y = point.y;
+		GetMapPoint(pEndPoint);
+		nEndPointID = ModifyPointData(nEndPointID, pEndPoint);
+		InvalidateRect(&Rect); break;
 	case TESTCASE:	
 		for (int i = 0; i < pointNumber; i++) {
-			if (abs(mpt2.x - PointData[i].x) < 1. && abs(mpt2.y - PointData[i].y) < 1.) {
+			if (abs(mpt2.x - PointData[i].x) < 0.05 && abs(mpt2.y - PointData[i].y) < 0.05) {
 				pid = i;
 				break;
 			}
@@ -743,16 +760,29 @@ void CGISTinView::DrawGrid(CDC* pDC, Raster_Infor& Info)
 	}
 	pDC->SelectObject(OldPen);
 }
-void CGISTinView::RefreshPoint(CDC *pDC,double x,double y)
+void CGISTinView::RefreshPoint(CDC *pDC,double x,double y, int radius)
 {
     PNT P = {x,y};
     GetScreenPoint(&P);
-    pDC->SetPixel(P.x,P.y,RGB(255,0,0));
+	pDC->Ellipse(P.x - radius, P.y - radius, P.x + radius, P.y + radius);
+	//pDC->SetPixel(P.x, P.y, colors[BLUE]);
 }
+
+void CGISTinView::RefreshPoint(CDC *pDC, bool IsScreenPoint, double x, double y, COLOR PRGB, COLOR BRGB, int radius)
+{
+	PNT P = { x,y };
+	if (!IsScreenPoint) {
+		GetScreenPoint(&P);
+	}
+	pDC->SetPixel(P.x, P.y, PRGB);
+	pDC->Ellipse(P.x - radius, P.y - radius, P.x + radius, P.y + radius);
+}
+
+
 void CGISTinView::DrawPoint(CDC* pDC)
 {
 	CPen  NewPen;
-    NewPen.CreatePen(PS_SOLID,1,RGB(255,0,0));
+    NewPen.CreatePen(PS_SOLID,1,colors[BLUE]);
     CPen *OldPen=pDC->SelectObject(&NewPen);
 
 	int nSize = pointNumber;
@@ -764,7 +794,23 @@ void CGISTinView::DrawPoint(CDC* pDC)
     {
 		RefreshPoint(pDC,Point[i].x,Point[i].y);
 	}
-    pDC->SelectObject(OldPen)->DeleteObject();
+
+	CBrush brush2(colors[RED]);
+	CBrush *pOldBrush = pDC->SelectObject(&brush2);
+
+	// 绘制起点
+	if (pStartPoint) {
+		RefreshPoint(pDC, 0, pStartPoint->x, pStartPoint->y, BLACK, RED, 4);
+	}
+	// 绘制终点
+	CBrush brush3(colors[GREEN]);
+	pDC->SelectObject(&brush3);
+	if (pEndPoint) {
+		RefreshPoint(pDC, 0, pEndPoint->x, pEndPoint->y, BLACK, GREEN, 4);
+	}
+
+	pDC->SelectObject(OldPen);
+	pDC->SelectObject(pOldBrush);
 }
 void CGISTinView::DrawArc(CDC* pDC)
 {
@@ -1424,8 +1470,6 @@ void CGISTinView::OnShapefileOpen()
 		Point[i].x = PNTSet[i].x;
 		Point[i].y = PNTSet[i].y;
 		Point[i].ID = i;
-		Point2d p2d(PNTSet[i].x, PNTSet[i].y);
-		mHashTable[p2d] =  i;
 	}
 
 	CString cstr;
@@ -1471,14 +1515,22 @@ int CGISTinView::GetPointIDByXY(double x, double y) {
 }
 
 void CGISTinView::PointLineTopoConstruct() {
+	// 建立查找表，unordered_map
+	for (int i = 0; i<pointNumber; i++)
+	{
+		Point2d p2d(Point[i].x, Point[i].y);
+		mHashTable.insert(make_pair(p2d, i));
+	}
 	pTopoPointCollection.Initialize(pointNumber);
-	unordered_map<Point2d, int>::iterator iter = mHashTable.begin();
 	for (int i = 0; i < m_nDeEdgeCount; i++)
 	{
 		DCEL *pdecl = m_pDelaunayEdge[i];
-		//iter = mHashTable.find(*(pdecl->e[0].oData));
-		int idx1 = (mHashTable.find(*(pdecl->e[0].oData)))->second; //稍微正确的使用方式
-		int idx2 = (mHashTable.find(*(pdecl->e[1].oData)))->second;
+		int idx1 = mHashTable[*(pdecl->e[0].oData)]; //已解决//哈希函数有点问题
+		int idx2 = mHashTable[*(pdecl->e[1].oData)];
+		//int idx1 = (mHashTable.find(*(pdecl->e[0].oData)))->second; 
+		//int idx2 = (mHashTable.find(*(pdecl->e[1].oData)))->second;
+		//int idx1 = GetPointIDByXY(pdecl->e[0].oData->x, pdecl->e[0].oData->y); //逐点查找，很慢
+		//int idx2 = GetPointIDByXY(pdecl->e[1].oData->x, pdecl->e[1].oData->y);
 		pTopoPointCollection.pTopoPoints[idx1].AddLineID(i);
 		pTopoPointCollection.pTopoPoints[idx2].AddLineID(i);
 	}
@@ -1671,41 +1723,17 @@ void CGISTinView::CreateLinePath() {
 	LineTopologyConstruct();
 	PointTopologyConstruct();
 
-	//std::queue<long> queLineID;
-	//for (int i = 0; i < m_TopoPoint[nStartPointID].nLineCount; i++) {
-	//	queLineID.push(m_TopoPoint[nStartPointID].pConnectLineIDs[i]);
-	//}
-	//
-	//while (!queLineID.empty())
-	//{
-	//	long LID = queLineID.front();
-	//	queLineID.pop();
-	//	Line *pLine = m_LineSet.pLines;
-	//	while (pLine != NULL) {
-	//		if (pLine->LID == LID) {
-	//			break;
-	//		}
-	//		pLine = pLine->next;
-	//	}
-
-	//}
 
 	std::vector<long> quePointID;
 	quePointID.push_back(nStartPointID);
 	PointData[nStartPointID].visited = true;
 	while (!quePointID.empty()) {
 		long PID = quePointID[0]; //TODO:应该选取最小累积量的节点
-		for (int i = 0; i < m_TopoPoint[PID].nLineCount; i++) {
-			long LID = m_TopoPoint[PID].pConnectLineIDs[i];
-			Line *pLine = m_LineSet.pLines;
-			while (pLine != NULL) {
-				if (pLine->LID == LID) {
-					break;
-				}
-				pLine = pLine->next;
-			}
-			if (pLine != NULL) {
-
+		TopoPoint& CurrPoint = pTopoPointCollection[PID];
+		for (int i = 0; i < CurrPoint.nLineCount; i++) {
+			long LID = CurrPoint.pConnectLineIDs[i];
+			DCEL *pLine = m_pDelaunayEdge[i];
+			/*if (pLine != NULL) {
 				if (!PointData[pLine->ID1].visited) {
 					long dis = sqrt(pow(PointData[pLine->ID1].x - PointData[PID].x, 2) + pow(PointData[pLine->ID1].y - PointData[PID].y, 2));
 					if (PointData[pLine->ID1].parent == -1) {
@@ -1731,7 +1759,7 @@ void CGISTinView::CreateLinePath() {
 					}
 				}
 
-			}
+			}*/
 		}
 
 		PointData[PID].visited = true;

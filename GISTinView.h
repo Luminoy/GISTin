@@ -40,6 +40,21 @@
 #include <iostream>
 using namespace std;
 
+// 为Point2d 写的两个函数，以供unordered_map使用
+struct hash_func {
+	size_t operator() (const Point2d& PNT2d) const
+	{
+		return hash<double>()(PNT2d.x) + (hash<double>()(PNT2d.y) >> 4);
+	}
+};
+
+struct hash_cmp {
+	bool operator() (const Point2d& P1, const Point2d& P2) const
+	{
+		return P1.x == P2.x && P1.y == P2.y;
+	}
+};
+
 struct BlockTin
 {
 	vector<DCEL*> EdgeSet;
@@ -98,7 +113,8 @@ public:
    void CalcBoundGraph();
    void DrawGraph(CDC*pDC);
    void DrawPoint(CDC* pDC);
-   void RefreshPoint(CDC *pDC,double x,double y);
+   void RefreshPoint(CDC *pDC,double x,double y, int radius = 2);
+   void RefreshPoint(CDC *pDC, bool IsScreenPoint, double x, double y, COLOR PRGB, COLOR BRGB, int radius);
    void DrawArc(CDC* pDC);
    void RefreshARC(CDC *pDC,ArcSet arc);
    void RefreshLine(CDC *pDC,PNT pt1,PNT pt2);
