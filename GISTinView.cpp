@@ -9,12 +9,6 @@
 
 #include "BinaryTree.h"
 
-#include <gdal.h>
-#include <gdal_priv.h>
-#include <ogr_api.h>
-#include <ogr_core.h>
-#include <ogrsf_frmts.h>
-
 #define MIN_DIS_VALUE 1.0
 #define MAX_DIS_VALUE 10.0
 
@@ -61,10 +55,27 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_TOPOCONSTRUCT, &CGISTinView::OnTopoConstruct)
 	ON_COMMAND(ID_TESTCASE, &CGISTinView::OnTestCase)
 	ON_COMMAND(ID_CREATEPATH, &CGISTinView::OnCreatePath)
+	ON_COMMAND(ID_RASTER_OPEN, &CGISTinView::OnRasterOpen)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
 // CGISTinView construction/destruction
+void ReadRasterData(const char *filename) {
+	GDALAllRegister();
+	GDALDataset *pData = (GDALDataset *)GDALOpen(filename, GA_ReadOnly);
+	if (pData == NULL) {
+		AfxMessageBox("ERRROR!");
+		return;
+	}
+
+	CString str;
+	int nWidth = pData->GetRasterXSize();
+	int nHeight = pData->GetRasterYSize();
+	str.AppendFormat("%d, %d", nWidth, nHeight);
+	AfxMessageBox(str);
+
+	GDALClose(pData);
+}
 
 vector<PNT> ReadShapefile(const char *filename, char *format) {
 	OGRRegisterAll();
@@ -220,7 +231,7 @@ CGISTinView::CGISTinView()
 	colors[10] = RGB(127, 127, 0);
 	colors[11] = RGB(10, 200, 100);
 	colors[12] = RGB(100, 200, 10);
-	colors[13] = RGB(200, 100, 10);
+	colors[13] = RGB(100, 100, 100);
 
 	m_displayGrid = false;
 	m_displayTin = true;
@@ -672,17 +683,31 @@ void CGISTinView::DrawDelaunay(CDC *pDC, vector<DCEL*> &dcelCollection, COLORREF
 }
 void CGISTinView::DrawDelaunay(CDC *pDC, DCEL **pEdge, long nCount, COLORREF color, int nWidth)
 {
-	CPen  NewPen;
-	NewPen.CreatePen(PS_SOLID, nWidth, color);
-	CPen *OldPen=pDC->SelectObject(&NewPen);
+	CPen  BluePen;
+	BluePen.CreatePen(PS_SOLID, nWidth, colors[BLUE]);
+
+	CPen  GrayPen;
+	GrayPen.CreatePen(PS_SOLID, nWidth, colors[GRAY]);
+
+	CPen *OldPen = pDC->SelectObject(&BluePen);
 	for (int i = 0; i < nCount; i ++)
 	{
 		DCEL *pdecl = pEdge[i];
 		PNT P1 = {pdecl->e[0].oData->x, pdecl->e[0].oData->y};
 		PNT P2 = {pdecl->e[1].oData->x, pdecl->e[1].oData->y};
 		GetScreenPoint(&P1); GetScreenPoint(&P2); 
-		pDC->MoveTo(P1.x,P1.y);
-		pDC->LineTo(P2.x,P2.y);   
+		if (!pdecl->walkable) {
+			pDC->SelectObject(&GrayPen);
+			pDC->MoveTo(P1.x, P1.y);
+			pDC->LineTo(P2.x, P2.y);
+			pDC->SelectObject(&BluePen);
+		}
+		else
+		{
+			pDC->MoveTo(P1.x, P1.y);
+			pDC->LineTo(P2.x, P2.y);
+		}
+		 
 	}
     pDC->SelectObject(OldPen);
 }
@@ -1134,18 +1159,20 @@ void CGISTinView::OnGenerateDelaunay()
 	fprintf(fp, "%d   %.4f   %.4f\n", pointNumber, m_dReadFileTime, duration);
     fclose(fp);
 
-	if (pointNumber > 50 * 10000)
-	{
-		delete[]Point;
-		Point = NULL;
-		m_pDelaunayEdge = new DCEL*[pointNumber * 3];	     
-		pointNumber = 0;
- 	   
-	}
-	else
-	{
-		m_pDelaunayEdge = new DCEL*[pointNumber * 3];
-	}
+	//if (pointNumber > 50 * 10000)
+	//{
+	//	delete[]Point;
+	//	Point = NULL;
+	//	m_pDelaunayEdge = new DCEL*[pointNumber * 3];	     
+	//	pointNumber = 0;
+ //	   
+	//}
+	//else
+	//{
+	//	m_pDelaunayEdge = new DCEL*[pointNumber * 3];
+	//}
+
+	m_pDelaunayEdge = new DCEL*[pointNumber * 3];
 	//3.收集边
 	if (maxEdge.le != NULL)
 	{
@@ -1748,7 +1775,85 @@ int CGISTinView::ModifyPointData(int PID, PNT *pData) {
 	return PID;
 }
 
+void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, OGRLayer *pPolygons) {
+
+}
+
+void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, const char* szFileName) {
+	OGRRegisterAll();
+	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
+	OGRSFDriver* poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
+	OGRDataSource *poDS = poDriver->Open(szFileName);
+	OGRLayer *poLayer = NULL;
+
+	OGRDataSource *poNewDS = poDriver->CreateDataSource("E:\\DynamicLayer.shp");
+	OGRLayer *poNewLayer = poNewDS->CreateLayer("Lines", NULL, wkbLineString);
+	OGRFieldDefn ogrField("NO", OFTInteger);
+	ogrField.SetWidth(10);
+	poNewLayer->CreateField(&ogrField);
+
+	OGRDataSource *poResDS = poDriver->CreateDataSource("E:\\ResultLayer.shp");
+	OGRLayer *poResLayer = poResDS->CreateLayer("Lines", NULL, wkbLineString);
+	OGRFieldDefn ogrField_2("NO", OFTInteger);
+	ogrField_2.SetWidth(10);
+	poResLayer->CreateField(&ogrField_2);
+
+	if (poDS == NULL)
+	{
+		MessageBox("open failed!\n", "Error", 0);
+		return;
+	}
+	else
+	{
+		poLayer = poDS->GetLayer(0);
+	}
+
+	if (poNewDS == NULL)
+	{
+		MessageBox("open failed!\n", "Error", 0);
+		return;
+	}
+	else
+	{
+		for (int i = 0; i < m_nDeEdgeCount; i++) {
+			OGRFeature *poFeat = OGRFeature::CreateFeature(poNewLayer->GetLayerDefn());
+			poFeat->SetField("NO", i);
+			OGRLineString poLine;
+			poLine.setNumPoints(2);
+			OGRPoint P0(pEdges[i]->e[0].oData->x, pEdges[i]->e[0].oData->y);
+			OGRPoint P1(pEdges[i]->e[1].oData->x, pEdges[i]->e[1].oData->y);
+			poLine.setPoint(0,&P0);
+			poLine.setPoint(1,&P1);
+			poFeat->SetGeometry(&poLine);
+			if (poNewLayer->CreateFeature(poFeat) != OGRERR_NONE) {
+				AfxMessageBox("创建矢量线数据出错！");
+				return;
+			}
+			OGRFeature::DestroyFeature(poFeat);
+			OGRErr poErr = poLayer->Intersection(poNewLayer, poResLayer);
+			if (poErr == OGRERR_NONE) {
+				if (poResLayer->GetFeatureCount()) {
+					pEdges[i]->walkable = false;
+					poResLayer->DeleteFeature(0);
+				}
+			}
+			poNewLayer->DeleteFeature(0);
+		}
+	}
+
+	OGRDataSource::DestroyDataSource(poDS);
+	OGRDataSource::DestroyDataSource(poNewDS);
+	OGRDataSource::DestroyDataSource(poResDS);
+
+	poDriver->DeleteDataSource("E:\\DynamicLayer.shp");
+	poDriver->DeleteDataSource("E:\\ResultLayer.shp");
+
+	
+	OGRCleanupAll();
+}
+
 void CGISTinView::CreateLinePath() {
+	AssignEdgeAttribute(m_pDelaunayEdge, "E:\\快盘\\开阔空间的通行路径分析\\测试点\\shps\\grass_land.shp");
 	clock_t t1 = clock();
 	std::multiset<MyPoint*, MultisetLess> quePointID;
 	quePointID.insert(&PointData[nStartPointID]);
@@ -1760,7 +1865,7 @@ void CGISTinView::CreateLinePath() {
 		for (int i = 0; i < CurrPoint.nLineCount; i++) {
 			long LID = CurrPoint.pConnectLineIDs[i];
 			DCEL *pLine = m_pDelaunayEdge[LID];
-			if (pLine != NULL) {
+			if (pLine != NULL && pLine->walkable) {
 				Point2d P0(pLine->e[0].oData->x, pLine->e[0].oData->y);
 				Point2d P1(pLine->e[1].oData->x, pLine->e[1].oData->y);
 				int idx1 = mHashTable[P0];
@@ -1804,8 +1909,12 @@ void CGISTinView::CreateLinePath() {
 		//quePointID.pop();
 	}
 	CString cstr;
-	clock_t t2 = clock();
 
+	clock_t t2 = clock();
+	cstr.Format("path calcalation: %.3lf\n", double(t2 - t1) / 1000.);
+	AfxMessageBox(cstr);
+
+	cstr.Format(" ");
 	int id = nEndPointID;
 	int count = 1;
 	while (id != nStartPointID) {
@@ -1965,4 +2074,17 @@ void CGISTinView::OnCreatePath()
 		PointData[i].visited = false;
 	}
 	CreateLinePath();
+}
+
+
+void CGISTinView::OnRasterOpen()
+{
+	CString TheFileName;
+	CFileDialog fd(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_CREATEPROMPT | OFN_ENABLESIZING, "*.tif|*.tif|", AfxGetMainWnd());
+	if (fd.DoModal() == IDOK) {
+		TheFileName = fd.GetFileName();
+	}
+	else
+		return;
+	ReadRasterData("E:\\TEST\\gland_Ras");
 }

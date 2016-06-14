@@ -30,6 +30,12 @@
 #include "delaunaytriangulation.h"
 #include "PublicStruct.h"
 
+#include <gdal.h>
+#include <gdal_priv.h>
+#include <ogr_api.h>
+#include <ogr_core.h>
+#include <ogrsf_frmts.h>
+
 #include <xhash>
 #include <utility>
 #include <vector>
@@ -136,6 +142,8 @@ public:
    //void PointTopologyConstruct();
    //void CreateTriPath();
    int  ModifyPointData(int PID, PNT * pData);
+   void AssignEdgeAttribute(DCEL ** pEdges, OGRLayer *pPolygons);
+   void AssignEdgeAttribute(DCEL ** pEdges, const char * szFileName);
    void CreateLinePath();
    void AccuSort(vector<int>& vec, int left, int right);
    void OnPathConstruction();
@@ -235,6 +243,7 @@ public:
 	afx_msg void OnTestCase();
 	afx_msg void OnTopoConstruct();
 	afx_msg void OnCreatePath();
+	afx_msg void OnRasterOpen();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

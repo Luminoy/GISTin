@@ -8,4 +8,5 @@ public:
 public:
     Edge e[2];
     bool visited;
+	bool walkable;
 };
