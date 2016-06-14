@@ -60,21 +60,52 @@ END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
 // CGISTinView construction/destruction
-void ReadRasterData(const char *filename) {
+MyDataPackage *ReadRasterData(const char *filename) {
 	GDALAllRegister();
 	GDALDataset *pData = (GDALDataset *)GDALOpen(filename, GA_ReadOnly);
 	if (pData == NULL) {
 		AfxMessageBox("ERRROR!");
-		return;
+		return NULL;
 	}
-
-	CString str;
 	int nWidth = pData->GetRasterXSize();
 	int nHeight = pData->GetRasterYSize();
-	str.AppendFormat("%d, %d", nWidth, nHeight);
-	AfxMessageBox(str);
+	GDALRasterBand *pBand = pData->GetRasterBand(1);
+	double extent[4];
+	pData->GetGeoTransform(extent);
+	GDALDataType type = pBand->GetRasterDataType();
+	double NodataValue = pBand->GetNoDataValue();
+	DT_8U *pReturnData = new DT_8U[nWidth*nHeight];
+	pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
+	
+	for (int i = 0; i < nHeight; i++) {
+		for (int j = 0; j < nWidth; j++) {
+			if (pReturnData[i*nWidth + j] == (DT_8U)NodataValue) {
+				pReturnData[i*nWidth + j] = 1;
+			}
+			else
+			{
+				pReturnData[i*nWidth + j] = 0;
+			}
+		}
+	}
+	switch (type)
+	{
+	case GDT_Byte:
 
+		break;
+	default:
+		break;
+	}
+	CString str;
+	str.AppendFormat("XSize: %d, YSize: %d\n", nWidth, nHeight);
+	str.AppendFormat("DataType: %d\n", type);
+	str.AppendFormat("Extent: %.3lf, %.3lf,%.3lf,%.3lf\n", extent[0], extent[1], extent[2], extent[3]);
+	AfxMessageBox(str);
 	GDALClose(pData);
+
+	MyDataPackage *pDataPackage = new MyDataPackage();
+	pDataPackage->SetInfo(nWidth, nHeight, type, pReturnData);
+	return pDataPackage;
 }
 
 vector<PNT> ReadShapefile(const char *filename, char *format) {
@@ -2079,12 +2110,32 @@ void CGISTinView::OnCreatePath()
 
 void CGISTinView::OnRasterOpen()
 {
-	CString TheFileName;
-	CFileDialog fd(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_CREATEPROMPT | OFN_ENABLESIZING, "*.tif|*.tif|", AfxGetMainWnd());
+	CString TheFilePath;
+	CFileDialog fd(TRUE, NULL, "w001001x.adf", OFN_HIDEREADONLY | OFN_CREATEPROMPT | OFN_ENABLESIZING, "*.adf|*.adf|", AfxGetMainWnd());
 	if (fd.DoModal() == IDOK) {
-		TheFileName = fd.GetFileName();
+		TheFilePath = fd.GetFolderPath();
 	}
 	else
 		return;
-	ReadRasterData("E:\\TEST\\gland_Ras");
+	//CString cstr;
+	//AfxExtractSubString(cstr, TheFileName, TheFileName.FindOneOf("\\"));
+    MyDataPackage *pDataPackage = ReadRasterData(TheFilePath);
+	
+	switch (pDataPackage->nDataType)
+	{
+	case 1:
+		break;
+	case 2:
+		break;
+	case 3:
+		break;
+	case 4:
+		break;
+	case 5:
+		break;
+	case 6:
+		break;
+	default:
+		break;
+	}
 }

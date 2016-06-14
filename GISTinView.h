@@ -27,11 +27,13 @@
 #define   BlockGridOffset   0.1
 //------------------
 
+
 #include "delaunaytriangulation.h"
 #include "PublicStruct.h"
 
 #include <gdal.h>
 #include <gdal_priv.h>
+#include <gdal_frmts.h>
 #include <ogr_api.h>
 #include <ogr_core.h>
 #include <ogrsf_frmts.h>

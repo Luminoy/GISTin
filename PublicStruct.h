@@ -10,6 +10,22 @@ enum COLOR {
 	BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLO, WHITE,GRAY = 13
 };
 
+/*! 8U */
+typedef unsigned char   DT_8U;
+/*! 16U */
+typedef unsigned short  DT_16U;
+/*! 16S */
+typedef short           DT_16S;
+/*! 32U */
+typedef unsigned int    DT_32U;
+/*! 32S */
+typedef int             DT_32S;
+/*! 32F */
+typedef float           DT_32F;
+/*! 64F */
+typedef double          DT_64F;
+
+
 struct PNT
 {
 	double x;
@@ -186,6 +202,66 @@ public:
 	}
 };
 
+struct MyDataPackage {
+	void *pData;
+	int nDataType;
+	int nWidth, nHeight;
+
+	MyDataPackage(): pData(NULL), nDataType(0), nWidth(0), nHeight(0) {}
+
+	void Reset() {
+		if (pData) {
+			delete []pData;
+			pData = NULL;
+			nDataType = 0;
+			nWidth = 0;
+			nHeight = 0;
+		}
+
+	}
+
+	bool SetInfo(int width, int height, int type) {
+		Reset();
+		switch (type)
+		{
+		case 1:
+			pData = new DT_8U[width * height];
+			break;
+		case 2:
+			pData = new DT_16U[width * height];
+			break;
+		case 3:
+			pData = new DT_16S[width * height];
+			break;
+		case 4:
+			pData = new DT_32U[width * height];
+			break;
+		case 5:
+			pData = new DT_32S[width * height];
+			break;
+		case 6:
+			pData = new DT_32F[width * height];
+			break;
+		default:
+			return false;
+			break;
+		}
+		nWidth = width, nHeight = height, nDataType = type;
+		return true;
+	}
+
+	bool SetInfo(int width, int height, int type, void *pOuterData) {
+		Reset();
+		pData = pOuterData;
+		nWidth = width, nHeight = height, nDataType = type;
+		return true;
+	}
+
+	~MyDataPackage()
+	{
+		Reset();
+	}
+};
 struct Line
 {
 	int LID;                  //Ïß¶ÎµÄID
