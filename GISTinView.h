@@ -116,6 +116,7 @@ private:
    long nPathPointNum;             // 路径点个数
    TopoPointCollection pTopoPointCollection;//点线的拓扑信息
    unordered_map<Point2d, int, hash_func, hash_cmp> mHashTable;
+   vector<vector<PNT> > m_vecInputSHPGroups;
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -128,6 +129,7 @@ public:
    void CalcBoundGraph();
    void DrawGraph(CDC*pDC);
    void DrawPoint(CDC* pDC);
+   void DrawPolygonFromPointGroups(CDC* pDC, vector<vector<PNT> >& pPointGroups);
    void DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count);
    void RefreshPoint(CDC *pDC,double x,double y, int radius = 2);
    void RefreshPoint(CDC *pDC, bool IsScreenPoint, double x, double y, COLOR PRGB, COLOR BRGB, int radius);
@@ -144,13 +146,19 @@ public:
    //void PointTopologyConstruct();
    //void CreateTriPath();
    int  ModifyPointData(int PID, PNT * pData);
-   void AssignEdgeAttribute(DCEL ** pEdges, OGRLayer *pPolygons);
+   void AssignEdgeAttribute(DCEL ** pEdges, int count, MyDataPackage *pPackage);
    void AssignEdgeAttribute(DCEL ** pEdges, const char * szFileName);
    void CreateLinePath();
    void AccuSort(vector<int>& vec, int left, int right);
    void OnPathConstruction();
    void OnTinDensify();
-protected: // create from serialization only
+
+   MyDataPackage * ReadRasterData(const char * filename);
+   vector<PNT> ReadShapefile(const char * filename, char * format);
+   void SaveShapeFile(const char * filename, const char * format, MyPoint * pData, int count);
+protected:
+	
+	// create from serialization only
 	CGISTinView();
 	DECLARE_DYNCREATE(CGISTinView)
 

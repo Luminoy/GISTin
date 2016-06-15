@@ -7,7 +7,7 @@
 //定义数据结构
 
 enum COLOR {
-	BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLO, WHITE,GRAY = 13
+	BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLO, WHITE, DARKCYAN, GRAY = 13
 };
 
 /*! 8U */
@@ -205,7 +205,9 @@ public:
 struct MyDataPackage {
 	void *pData;
 	int nDataType;
-	int nWidth, nHeight;
+	int nWidth, nHeight;              //图像尺寸
+	float fPixelWidth, fPixelHeight;  //像元尺寸
+	float fUpperBound, fLeftBound;    //左上角 
 
 	MyDataPackage(): pData(NULL), nDataType(0), nWidth(0), nHeight(0) {}
 
@@ -220,7 +222,7 @@ struct MyDataPackage {
 
 	}
 
-	bool SetInfo(int width, int height, int type) {
+	bool SetInfo(int type, int width, int height, float pixel_width, float pixel_height, float upper_bound, float left_bound) {
 		Reset();
 		switch (type)
 		{
@@ -247,12 +249,14 @@ struct MyDataPackage {
 			break;
 		}
 		nWidth = width, nHeight = height, nDataType = type;
+		fPixelWidth = pixel_width, fPixelHeight = pixel_height, fUpperBound = upper_bound, fLeftBound = left_bound;
 		return true;
 	}
 
-	bool SetInfo(int width, int height, int type, void *pOuterData) {
+	bool SetInfo(int type, void *pOuterData, int width, int height, float pixel_width, float pixel_height, float upper_bound, float left_bound) {
 		Reset();
 		pData = pOuterData;
+		fPixelWidth = pixel_width, fPixelHeight = pixel_height, fUpperBound = upper_bound, fLeftBound = left_bound;
 		nWidth = width, nHeight = height, nDataType = type;
 		return true;
 	}

@@ -60,7 +60,7 @@ END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
 // CGISTinView construction/destruction
-MyDataPackage *ReadRasterData(const char *filename) {
+MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	GDALAllRegister();
 	GDALDataset *pData = (GDALDataset *)GDALOpen(filename, GA_ReadOnly);
 	if (pData == NULL) {
@@ -70,13 +70,14 @@ MyDataPackage *ReadRasterData(const char *filename) {
 	int nWidth = pData->GetRasterXSize();
 	int nHeight = pData->GetRasterYSize();
 	GDALRasterBand *pBand = pData->GetRasterBand(1);
-	double extent[4];
-	pData->GetGeoTransform(extent);
+	double fGeoTranform[6];       // 6个！
+	pData->GetGeoTransform(fGeoTranform);
 	GDALDataType type = pBand->GetRasterDataType();
 	double NodataValue = pBand->GetNoDataValue();
 	DT_8U *pReturnData = new DT_8U[nWidth*nHeight];
 	pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
 	
+	// 设置1为可通行，0为不可通行
 	for (int i = 0; i < nHeight; i++) {
 		for (int j = 0; j < nWidth; j++) {
 			if (pReturnData[i*nWidth + j] == (DT_8U)NodataValue) {
@@ -99,16 +100,18 @@ MyDataPackage *ReadRasterData(const char *filename) {
 	CString str;
 	str.AppendFormat("XSize: %d, YSize: %d\n", nWidth, nHeight);
 	str.AppendFormat("DataType: %d\n", type);
-	str.AppendFormat("Extent: %.3lf, %.3lf,%.3lf,%.3lf\n", extent[0], extent[1], extent[2], extent[3]);
+	str.AppendFormat("Left: %.3lf, Upper: %.3lf\n", fGeoTranform[0], fGeoTranform[3]);
+	str.AppendFormat("PixelWidth: %.3lf,PixelHeight: %.3lf\n", fGeoTranform[1], fGeoTranform[5]);
+
 	AfxMessageBox(str);
 	GDALClose(pData);
 
 	MyDataPackage *pDataPackage = new MyDataPackage();
-	pDataPackage->SetInfo(nWidth, nHeight, type, pReturnData);
+	pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0]);
 	return pDataPackage;
 }
 
-vector<PNT> ReadShapefile(const char *filename, char *format) {
+vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 	OGRRegisterAll();
 	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
 	OGRSFDriver* poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(format);
@@ -116,30 +119,40 @@ vector<PNT> ReadShapefile(const char *filename, char *format) {
 	vector<PNT> PNTSet;
 	if (poDS == NULL)
 	{
-		MessageBoxA(NULL, "open failed!\n", "Error", 0);
+		MessageBoxA("open failed!\n", "Error", 0);
 	}
 	else
 	{
 		OGRLayer *poLayer = poDS->GetLayer(0);
 		OGRFeature *poFeat = NULL;
 		int idx = 0;
+		int pnt_count = 0;
 		while ((poFeat = poLayer->GetNextFeature()) != NULL) {
 			OGRGeometry *poGeometry = poFeat->GetGeometryRef();
 			if (poGeometry != NULL) {
 				if (wkbFlatten(poGeometry->getGeometryType()) == wkbPoint) {
 					OGRPoint *poPoint = (OGRPoint *)poGeometry;
+					pnt_count = 1;
+					vector<PNT> group(pnt_count);
+
 					PNT POINT;
 					POINT.x = poPoint->getX();
 					POINT.y = poPoint->getY();
-					PNTSet.push_back(POINT);
-					char str[100];
-					sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
+
+					//PNTSet.push_back(POINT);
+					group.push_back(POINT);
+
+					m_vecInputSHPGroups.push_back(group);
+
+					//char str[100];
+					//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
 					//MessageBoxA(NULL, str, "coordinate", 0);
 				}
 				else if (wkbFlatten(poGeometry->getGeometryType()) == wkbLineString)
 				{
 					OGRLineString *poLine = (OGRLineString *)poGeometry;
-					int pnt_count = poLine->getNumPoints();
+					pnt_count = poLine->getNumPoints();
+					vector<PNT> group(pnt_count);
 					for (int i = 0; i < pnt_count; i++) {
 						OGRPoint *poPoint = new OGRPoint();
 						poLine->getPoint(i, poPoint);
@@ -147,70 +160,121 @@ vector<PNT> ReadShapefile(const char *filename, char *format) {
 						PNT POINT;
 						POINT.x = poPoint->getX();
 						POINT.y = poPoint->getY();
-						PNTSet.push_back(POINT);
 
-						char str[100];
-						sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
+						//PNTSet.push_back(POINT);
+						group.push_back(POINT);
+
+						//char str[100];
+						//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
 						//MessageBoxA(NULL, str, "coordinate", 0);
 					}
+					m_vecInputSHPGroups.push_back(group);
+
 				}
 				else if (wkbFlatten(poGeometry->getGeometryType()) == wkbPolygon) {
 					OGRPolygon *poPolygon = (OGRPolygon *)poGeometry;
 					OGRLinearRing* poRing = poPolygon->getExteriorRing();
-					int pnt_count = poRing->getNumPoints();
+					pnt_count = poRing->getNumPoints();
 					OGRPoint *poPoint = new OGRPoint();
+					vector<PNT> group;
 					for (int i = 0; i < pnt_count; i++) {
 						poRing->getPoint(i, poPoint);
+
 						PNT POINT;
 						POINT.x = poPoint->getX();
 						POINT.y = poPoint->getY();
 
-						PNTSet.push_back(POINT);
-						char str[100];
-						sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
+						//PNTSet.push_back(POINT);
+						group.push_back(POINT);
+
+						//char str[100];
+						//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
 						//MessageBoxA(NULL, str, "coordinate", 0);
 					}
-
-					// 长线段的切割
-					if (pnt_count >= 2) {
-						PNT pFirst, pSecond;
-						//pFirst = pSecond = NULL;
-
-						long idx_begin = PNTSet.size() - pnt_count;
-						long idx_end = PNTSet.size() - 1;
-						pFirst = PNTSet[idx_begin];
-						for (int k = 1; k <= pnt_count; ++k) {
-							pSecond = PNTSet[idx_begin + k % pnt_count];
-							double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
-							if (dis > MAX_DIS_VALUE) {
-								int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % 10 == 0 ? 0 : 1); // 应该将原长线段划分为parts段
-								double dx = (pSecond.x - pFirst.x) / parts;
-								double dy = (pSecond.y - pFirst.y) / parts;
-								for (int i = 1; i < parts; i++) {
-									PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
-									PNTSet.push_back(NewPNT);
-								}
-							}
-							pFirst = pSecond;
-						}
-					}
+					m_vecInputSHPGroups.push_back(group);
 
 				}
+				else if (poGeometry->getGeometryType() == wkbMultiPolygon25D) {  //加了wkbFlatten居然会导致判断为不等于！！！
+					OGRMultiPolygon *poMultiPolygon = (OGRMultiPolygon *)poGeometry;
+
+					for (int k = 0; k < poMultiPolygon->getNumGeometries(); k++) {
+						OGRPolygon *poPolygon = (OGRPolygon *)poMultiPolygon->getGeometryRef(k);
+						OGRLinearRing *poRing = (OGRLinearRing *)poPolygon->getExteriorRing();
+						pnt_count = poRing->getNumPoints();
+						OGRPoint *poPoint = new OGRPoint();
+						vector<PNT> group;
+						for (int i = 0; i < pnt_count; i++) {
+							poRing->getPoint(i, poPoint);
+
+							PNT POINT;
+							POINT.x = poPoint->getX();
+							POINT.y = poPoint->getY();
+
+							//PNTSet.push_back(POINT);
+							group.push_back(POINT);
+						}
+						m_vecInputSHPGroups.push_back(group);
+					}
+				}
+				else
+				{
+					printf("%d : no geometry !\n", idx);
+				}
+				OGRFeature::DestroyFeature(poFeat);
+				idx++;
 			}
-			else
-			{
-				printf("%d : no geometry !\n", idx);
-			}
-			OGRFeature::DestroyFeature(poFeat);
-			idx++;
 		}
+
+		// 长线段的切割
+		for (int v = 0; v < m_vecInputSHPGroups.size(); v++) {
+			vector<PNT>& group = m_vecInputSHPGroups[v];
+			if (group.size() >= 2) {
+				for (int w = 0; w < group.size(); w++) {
+					PNT pFirst = group[w % group.size()];
+					PNT pSecond = group[(w + 1) % group.size()];
+					double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
+					if (dis > MAX_DIS_VALUE) {
+						int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % 10 == 0 ? 0 : 1); // 应该将原长线段划分为parts段
+						double dx = (pSecond.x - pFirst.x) / parts;
+						double dy = (pSecond.y - pFirst.y) / parts;
+						for (int i = 1; i < parts; i++) {
+							PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
+							PNTSet.push_back(NewPNT);
+						}
+					}
+					PNTSet.push_back(pSecond);
+				}
+			}
+		}
+		//if (pnt_count >= 2) {
+		//	PNT pFirst, pSecond;
+		//	//pFirst = pSecond = NULL;
+
+		//	long idx_begin = PNTSet.size() - pnt_count;
+		//	long idx_end = PNTSet.size() - 1;
+		//	pFirst = PNTSet[idx_begin];
+		//	for (int k = 1; k <= pnt_count; ++k) {
+		//		pSecond = PNTSet[idx_begin + k % pnt_count];
+		//		double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
+		//		if (dis > MAX_DIS_VALUE) {
+		//			int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % 10 == 0 ? 0 : 1); // 应该将原长线段划分为parts段
+		//			double dx = (pSecond.x - pFirst.x) / parts;
+		//			double dy = (pSecond.y - pFirst.y) / parts;
+		//			for (int i = 1; i < parts; i++) {
+		//				PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
+		//				PNTSet.push_back(NewPNT);
+		//			}
+		//		}
+		//		pFirst = pSecond;
+		//	}
+		//}
+		OGRDataSource::DestroyDataSource(poDS);
+		OGRCleanupAll();
+		return PNTSet;
 	}
-	OGRDataSource::DestroyDataSource(poDS);
-	OGRCleanupAll();
-	return PNTSet;
 }
 
-void SaveShapeFile(const char *filename, const char *format, MyPoint* pData, int count) {
+void CGISTinView::SaveShapeFile(const char *filename, const char *format, MyPoint* pData, int count) {
 	::OGRRegisterAll();
 	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
 	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(format);
@@ -668,6 +732,9 @@ void CGISTinView::DrawGraph(CDC*pDC)
 	DrawPoint(pDC);
     DrawArc(pDC);	
 
+	if (!m_vecInputSHPGroups.empty()) {
+		DrawPolygonFromPointGroups(pDC, m_vecInputSHPGroups);
+	}
 	if (m_displayMergeTin) 
 	{
 		DrawDelaunay(pDC, m_pMergeTin, m_nEdgeCount, RGB(255, 0, 0), 1);
@@ -690,6 +757,7 @@ void CGISTinView::DrawGraph(CDC*pDC)
 	{
 		DrawResultPath(pDC, pPathPoints, nPathPointNum);
 	}
+
 	
 }
 void CGISTinView::DrawDelaunay(CDC *pDC, vector<DCEL*> &dcelCollection, COLORREF color, int nWidth)
@@ -874,6 +942,38 @@ void CGISTinView::DrawPoint(CDC* pDC)
 	}
 
 	pDC->SelectObject(OldPen);
+	pDC->SelectObject(pOldBrush);
+}
+
+void CGISTinView::DrawPolygonFromPointGroups(CDC * pDC, vector<vector<PNT> >& vecPointGroups)
+{
+	if (vecPointGroups.empty())	return;
+	CPen Pen;
+	Pen.CreatePen(PS_SOLID, 1, colors[BLUE]);
+	CBrush Brush;
+	Brush.CreateSolidBrush(colors[DARKCYAN]);
+
+	CPen *pOldPen = pDC->SelectObject(&Pen);
+	CBrush *pOldBrush = pDC->SelectObject(&Brush);
+	
+	for (int i = 0; i < vecPointGroups.size(); i++) {
+		vector<PNT> &group = vecPointGroups[i];
+		pDC->BeginPath();
+		if (group.size() > 2) {
+			PNT P0(group[0]);
+			GetScreenPoint(&P0);
+			pDC->MoveTo(P0.x, P0.y);
+			for (int j = 1; j < group.size(); j++) {
+				PNT P1(group[j]);
+				GetScreenPoint(&P1);
+				pDC->LineTo(P1.x, P1.y);
+			}
+			pDC->LineTo(P0.x, P0.y);
+		}
+		pDC->EndPath();
+		pDC->FillPath();
+	}
+	pDC->SelectObject(pOldPen);
 	pDC->SelectObject(pOldBrush);
 }
 
@@ -1542,7 +1642,7 @@ void CGISTinView::OnShapefileOpen()
 {
 	// TODO: 在此添加命令处理程序代码
 	CString  TheFileName;
-	CFileDialog  FileDlg(TRUE, NULL, NULL, OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.shp|*.shp|", AfxGetMainWnd());
+	CFileDialog  FileDlg(TRUE, NULL, "grass_land.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.shp|*.shp|", AfxGetMainWnd());
 	
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -1806,8 +1906,44 @@ int CGISTinView::ModifyPointData(int PID, PNT *pData) {
 	return PID;
 }
 
-void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, OGRLayer *pPolygons) {
-
+void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *pPackage) {
+	int nWidth = pPackage->nWidth;
+	int nHeight = pPackage->nHeight;
+	float UpperBound = pPackage->fUpperBound;
+	float LeftBound = pPackage->fLeftBound;
+	float PixelWidth = pPackage->fPixelWidth;
+	float PixelHeight = pPackage->fPixelHeight;
+	
+	switch (pPackage->nDataType)
+	{
+	case 1:
+		DT_8U *pData = static_cast<DT_8U *>(pPackage->pData);
+		for (int i = 0; i < count; i++) {
+			int r, c;
+			Point2d P((pEdges[i]->e[0].oData->x + pEdges[i]->e[1].oData->x) / 2, (pEdges[i]->e[0].oData->y + pEdges[i]->e[1].oData->y) / 2);
+			c = (P.x - LeftBound) / PixelWidth;
+			r = (P.y - UpperBound) / PixelHeight;
+			pEdges[i]->walkable = pData[r * nWidth + c] == 0 ? false : true;
+		}
+		break;
+	//case 2:
+	//	//pData = new DT_16U[width * height];
+	//	break;
+	//case 3:
+	//	//pData = new DT_16S[width * height];
+	//	break;
+	//case 4:
+	//	//pData = new DT_32U[width * height];
+	//	break;
+	//case 5:
+	//	//pData = new DT_32S[width * height];
+	//	break;
+	//case 6:
+	//	//pData = new DT_32F[width * height];
+	//	break;
+	//default:
+	//	break;
+	}
 }
 
 void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, const char* szFileName) {
@@ -1884,7 +2020,7 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, const char* szFileName) {
 }
 
 void CGISTinView::CreateLinePath() {
-	AssignEdgeAttribute(m_pDelaunayEdge, "E:\\快盘\\开阔空间的通行路径分析\\测试点\\shps\\grass_land.shp");
+	//AssignEdgeAttribute(m_pDelaunayEdge, "E:\\快盘\\开阔空间的通行路径分析\\测试点\\shps\\grass_land.shp");
 	clock_t t1 = clock();
 	std::multiset<MyPoint*, MultisetLess> quePointID;
 	quePointID.insert(&PointData[nStartPointID]);
@@ -2107,11 +2243,10 @@ void CGISTinView::OnCreatePath()
 	CreateLinePath();
 }
 
-
 void CGISTinView::OnRasterOpen()
 {
 	CString TheFilePath;
-	CFileDialog fd(TRUE, NULL, "w001001x.adf", OFN_HIDEREADONLY | OFN_CREATEPROMPT | OFN_ENABLESIZING, "*.adf|*.adf|", AfxGetMainWnd());
+	CFileDialog fd(TRUE, NULL, "w001001x.adf", OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.adf|*.adf|", AfxGetMainWnd());
 	if (fd.DoModal() == IDOK) {
 		TheFilePath = fd.GetFolderPath();
 	}
@@ -2119,8 +2254,8 @@ void CGISTinView::OnRasterOpen()
 		return;
 	//CString cstr;
 	//AfxExtractSubString(cstr, TheFileName, TheFileName.FindOneOf("\\"));
-    MyDataPackage *pDataPackage = ReadRasterData(TheFilePath);
-	
+    MyDataPackage *pDataPackage = ReadRasterData(TheFilePath.GetBuffer());
+	AssignEdgeAttribute(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
 	switch (pDataPackage->nDataType)
 	{
 	case 1:
