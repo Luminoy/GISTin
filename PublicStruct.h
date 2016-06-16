@@ -7,7 +7,7 @@
 //定义数据结构
 
 enum COLOR {
-	BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLO, WHITE, DARKCYAN, GRAY = 13
+	BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, WHITE, DARKCYAN /*深青色*/, PURPLE/*紫色*/, OLIVE/*橄榄色*/, GRAY = 13
 };
 
 /*! 8U */
@@ -208,21 +208,24 @@ struct MyDataPackage {
 	int nWidth, nHeight;              //图像尺寸
 	float fPixelWidth, fPixelHeight;  //像元尺寸
 	float fUpperBound, fLeftBound;    //左上角 
+	double dNoDataValue;
 
-	MyDataPackage(): pData(NULL), nDataType(0), nWidth(0), nHeight(0) {}
+	MyDataPackage(): pData(NULL), nDataType(0), nWidth(0), nHeight(0) ,
+		fPixelWidth(0.), fPixelHeight(0.), fUpperBound(0.), fLeftBound(0.),  dNoDataValue(0.)  {}
 
 	void Reset() {
 		if (pData) {
 			delete []pData;
 			pData = NULL;
-			nDataType = 0;
-			nWidth = 0;
-			nHeight = 0;
+			nDataType = 0, nWidth = 0, nHeight = 0;
+			fPixelWidth = 0., fPixelHeight = 0., fUpperBound = 0., fLeftBound = 0., dNoDataValue = 0.;
 		}
 
 	}
 
-	bool SetInfo(int type, int width, int height, float pixel_width, float pixel_height, float upper_bound, float left_bound) {
+	bool SetInfo( int type, int width, int height, 
+		float pixel_width, float pixel_height, float upper_bound, float left_bound, 
+		double nodata_value ) {
 		Reset();
 		switch (type)
 		{
@@ -250,14 +253,20 @@ struct MyDataPackage {
 		}
 		nWidth = width, nHeight = height, nDataType = type;
 		fPixelWidth = pixel_width, fPixelHeight = pixel_height, fUpperBound = upper_bound, fLeftBound = left_bound;
+		dNoDataValue = nodata_value;
+
 		return true;
 	}
 
-	bool SetInfo(int type, void *pOuterData, int width, int height, float pixel_width, float pixel_height, float upper_bound, float left_bound) {
+	bool SetInfo(int type, void *pOuterData, int width, int height, 
+		float pixel_width, float pixel_height, float upper_bound, float left_bound, 
+		double nodata_value) {
 		Reset();
 		pData = pOuterData;
-		fPixelWidth = pixel_width, fPixelHeight = pixel_height, fUpperBound = upper_bound, fLeftBound = left_bound;
 		nWidth = width, nHeight = height, nDataType = type;
+		fPixelWidth = pixel_width, fPixelHeight = pixel_height, fUpperBound = upper_bound, fLeftBound = left_bound;
+		dNoDataValue = nodata_value;
+
 		return true;
 	}
 
@@ -266,48 +275,48 @@ struct MyDataPackage {
 		Reset();
 	}
 };
-struct Line
-{
-	int LID;                  //线段的ID
-	int ID1, ID2;             //ID1、ID2为线段的两端点在原始点集中的序号
-	int LeftTri, RightTri;    //左右三角形序号
-	Line* next;
-	Line() : LID(-1), ID1(-1), ID2(-1), LeftTri(-1), RightTri(-1), next(NULL) {}
-};
-
-struct TopoLine {
-
-};
-
-struct LineSet {
-	long nLineNum;
-	Line* pLines;
-};
-
-struct Triangle {
-	long TID;
-	long PID1, PID2, PID3;
-	long LID1, LID2, LID3;
-	long TID1, TID2, TID3;
-	Triangle *next;
-};
-
-typedef struct TRIANGLE
-{
-	int      ID1, ID2, ID3;  //记录坐标点在原点集中的序号
-	TRIANGLE *next, *back;   //next和back指针在扫描法中窜起初始化的三角
-	TRIANGLE *p1tin;         //以下三个指针在扫描法中标示每个三角型对应的3个三角形
-	TRIANGLE *p2tin;         //对应关系与顶点y坐标有关
-	TRIANGLE *p3tin;         //p1tin对应y坐标最大的顶点对应的边的邻接三角形，p2tin次之，p3tin最小
-	int      g_SeqNum;       //三角形的序号
-	int      visited;        //在扫描法的非递归方式中要用
-	double   weight;         //三角网的权重
-	double   accu;           //累计值
-	TRIANGLE *parentTri;     //父三角形
-	TRIANGLE() : ID1(-1), ID2(-1), ID3(-1),
-		next(NULL), back(NULL), p1tin(NULL), p2tin(NULL), p3tin(NULL),
-		g_SeqNum(-1), visited(0), weight(1.), accu(0.), parentTri(NULL) {}
-	//TRIANGLE(int _ID1 = -1, int _ID2 = -1, int _ID3 = -1, )
-}TRIANGLENODE;
+//struct Line
+//{
+//	int LID;                  //线段的ID
+//	int ID1, ID2;             //ID1、ID2为线段的两端点在原始点集中的序号
+//	int LeftTri, RightTri;    //左右三角形序号
+//	Line* next;
+//	Line() : LID(-1), ID1(-1), ID2(-1), LeftTri(-1), RightTri(-1), next(NULL) {}
+//};
+//
+//struct TopoLine {
+//
+//};
+//
+//struct LineSet {
+//	long nLineNum;
+//	Line* pLines;
+//};
+//
+//struct Triangle {
+//	long TID;
+//	long PID1, PID2, PID3;
+//	long LID1, LID2, LID3;
+//	long TID1, TID2, TID3;
+//	Triangle *next;
+//};
+//
+//typedef struct TRIANGLE
+//{
+//	int      ID1, ID2, ID3;  //记录坐标点在原点集中的序号
+//	TRIANGLE *next, *back;   //next和back指针在扫描法中窜起初始化的三角
+//	TRIANGLE *p1tin;         //以下三个指针在扫描法中标示每个三角型对应的3个三角形
+//	TRIANGLE *p2tin;         //对应关系与顶点y坐标有关
+//	TRIANGLE *p3tin;         //p1tin对应y坐标最大的顶点对应的边的邻接三角形，p2tin次之，p3tin最小
+//	int      g_SeqNum;       //三角形的序号
+//	int      visited;        //在扫描法的非递归方式中要用
+//	double   weight;         //三角网的权重
+//	double   accu;           //累计值
+//	TRIANGLE *parentTri;     //父三角形
+//	TRIANGLE() : ID1(-1), ID2(-1), ID3(-1),
+//		next(NULL), back(NULL), p1tin(NULL), p2tin(NULL), p3tin(NULL),
+//		g_SeqNum(-1), visited(0), weight(1.), accu(0.), parentTri(NULL) {}
+//	//TRIANGLE(int _ID1 = -1, int _ID2 = -1, int _ID3 = -1, )
+//}TRIANGLENODE;
 
 #endif //PUBLIC_STRUCT_H

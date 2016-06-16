@@ -78,17 +78,17 @@ MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
 	
 	// 设置1为可通行，0为不可通行
-	for (int i = 0; i < nHeight; i++) {
-		for (int j = 0; j < nWidth; j++) {
-			if (pReturnData[i*nWidth + j] == (DT_8U)NodataValue) {
-				pReturnData[i*nWidth + j] = 1;
-			}
-			else
-			{
-				pReturnData[i*nWidth + j] = 0;
-			}
-		}
-	}
+	//for (int i = 0; i < nHeight; i++) {
+	//	for (int j = 0; j < nWidth; j++) {
+	//		if (pReturnData[i*nWidth + j] == (DT_8U)NodataValue) {
+	//			pReturnData[i*nWidth + j] = 1;
+	//		}
+	//		else
+	//		{
+	//			pReturnData[i*nWidth + j] = 0;
+	//		}
+	//	}
+	//}
 	switch (type)
 	{
 	case GDT_Byte:
@@ -107,7 +107,7 @@ MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	GDALClose(pData);
 
 	MyDataPackage *pDataPackage = new MyDataPackage();
-	pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0]);
+	pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0], NodataValue);
 	return pDataPackage;
 }
 
@@ -337,7 +337,7 @@ CGISTinView::CGISTinView()
 	m_nEdgeCount = 0;
 	m_nDeEdgeCount = 0;
 
-	tinHead = NULL;
+	//tinHead = NULL;
 	pStartPoint = pEndPoint = NULL;
 	m_TopoPoint = NULL;
 	pPathPoints = NULL;
@@ -786,7 +786,7 @@ void CGISTinView::DrawDelaunay(CDC *pDC, DCEL **pEdge, long nCount, COLORREF col
 	BluePen.CreatePen(PS_SOLID, nWidth, colors[BLUE]);
 
 	CPen  GrayPen;
-	GrayPen.CreatePen(PS_SOLID, nWidth, colors[GRAY]);
+	GrayPen.CreatePen(PS_SOLID, nWidth, colors[PURPLE]);
 
 	CPen *OldPen = pDC->SelectObject(&BluePen);
 	for (int i = 0; i < nCount; i ++)
@@ -951,7 +951,7 @@ void CGISTinView::DrawPolygonFromPointGroups(CDC * pDC, vector<vector<PNT> >& ve
 	CPen Pen;
 	Pen.CreatePen(PS_SOLID, 1, colors[BLUE]);
 	CBrush Brush;
-	Brush.CreateSolidBrush(colors[DARKCYAN]);
+	Brush.CreateSolidBrush(colors[PURPLE]);
 
 	CPen *pOldPen = pDC->SelectObject(&Pen);
 	CBrush *pOldBrush = pDC->SelectObject(&Brush);
@@ -1906,6 +1906,7 @@ int CGISTinView::ModifyPointData(int PID, PNT *pData) {
 	return PID;
 }
 
+template<typename DT>
 void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *pPackage) {
 	int nWidth = pPackage->nWidth;
 	int nHeight = pPackage->nHeight;
@@ -1914,35 +1915,14 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 	float PixelWidth = pPackage->fPixelWidth;
 	float PixelHeight = pPackage->fPixelHeight;
 	
-	switch (pPackage->nDataType)
-	{
-	case 1:
-		DT_8U *pData = static_cast<DT_8U *>(pPackage->pData);
-		for (int i = 0; i < count; i++) {
-			int r, c;
-			Point2d P((pEdges[i]->e[0].oData->x + pEdges[i]->e[1].oData->x) / 2, (pEdges[i]->e[0].oData->y + pEdges[i]->e[1].oData->y) / 2);
-			c = (P.x - LeftBound) / PixelWidth;
-			r = (P.y - UpperBound) / PixelHeight;
-			pEdges[i]->walkable = pData[r * nWidth + c] == 0 ? false : true;
-		}
-		break;
-	//case 2:
-	//	//pData = new DT_16U[width * height];
-	//	break;
-	//case 3:
-	//	//pData = new DT_16S[width * height];
-	//	break;
-	//case 4:
-	//	//pData = new DT_32U[width * height];
-	//	break;
-	//case 5:
-	//	//pData = new DT_32S[width * height];
-	//	break;
-	//case 6:
-	//	//pData = new DT_32F[width * height];
-	//	break;
-	//default:
-	//	break;
+	DT *pData = static_cast<DT *>(pPackage->pData);
+	DT NoDataValue = static_cast<DT>(pPackage->dNoDataValue);
+	for (int i = 0; i < count; i++) {
+		int r, c;
+		Point2d P((pEdges[i]->e[0].oData->x + pEdges[i]->e[1].oData->x) / 2, (pEdges[i]->e[0].oData->y + pEdges[i]->e[1].oData->y) / 2);
+		c = (P.x - LeftBound) / PixelWidth;
+		r = (P.y - UpperBound) / PixelHeight;
+		pEdges[i]->walkable = (pData[r * nWidth + c] == NoDataValue ? true : false);  //定义的是障碍栅格，因此值为Nodata的像元是可通行的！！
 	}
 }
 
@@ -2147,85 +2127,85 @@ void CGISTinView::OnPathConstruction()
 }
 
 // 三角网加密
-void CGISTinView::OnTinDensify()
-{
-	MyPoint *pNewPointData = NULL;
-	TRIANGLE *pNewTinHead = NULL;
-	long nNewStartPointID, nNewEndPointID;
-	nNewStartPointID = nNewEndPointID = -1;
-	vector<long> vecSave;
-	for (int i = 0; i < nPathPointNum; i++) {
-		long PID = pPathPoints[i].ID;
-		for (TRIANGLE* pTri = tinHead; pTri != NULL; pTri = pTri->next) {
-			if (pTri->ID1 == PID || pTri->ID2 == PID || pTri->ID3 == PID) {
-				if (PointData[pTri->ID1].visited) {
-
-					vecSave.push_back(pTri->ID1);
-					if (pTri->ID1 == nStartPointID) {
-						nNewStartPointID = vecSave.size() - 1;
-					}
-					if (pTri->ID1 == nEndPointID) {
-						nNewEndPointID = vecSave.size() - 1;
-					}
-					PointData[pTri->ID1].visited = false;
-				}
-				if (PointData[pTri->ID2].visited) {
-					vecSave.push_back(pTri->ID2);
-					if (pTri->ID2 == nStartPointID) {
-						nNewStartPointID = vecSave.size() - 1;
-					}
-					if (pTri->ID2 == nEndPointID) {
-						nNewEndPointID = vecSave.size() - 1;
-					}
-					PointData[pTri->ID2].visited = false;
-				}
-				if (PointData[pTri->ID3].visited) {
-					vecSave.push_back(pTri->ID3);
-					if (pTri->ID3 == nStartPointID) {
-						nNewStartPointID = vecSave.size() - 1;
-					}
-					if (pTri->ID3 == nEndPointID) {
-						nNewEndPointID = vecSave.size() - 1;
-					}
-					PointData[pTri->ID3].visited = false;
-				}
-			}
-		}
-	}
-
-
-	CString cstr;
-	cstr.Format("新点数：%d\n", vecSave.size());
-	AfxMessageBox(cstr);
-
-	cstr.Format("%d, %d\n", nStartPointID, PointData[vecSave[nNewStartPointID]].ID); //验证通过
-	AfxMessageBox(cstr);
-
-	cstr.Format("%d, %d\n", nEndPointID, PointData[vecSave[nNewEndPointID]].ID); //验证通过
-	AfxMessageBox(cstr);
-
-	nStartPointID = nNewStartPointID;
-	nEndPointID = nNewEndPointID;
-
-	pNewPointData = new MyPoint[vecSave.size()];
-	for (int i = 0; i < vecSave.size(); i++) {
-		memcpy(pNewPointData + i, PointData + vecSave[i], sizeof(MyPoint));
-		pNewPointData[i].ID = i;
-	}
-
-	delete[]PointData;
-	PointData = pNewPointData;
-	pointNumber = vecSave.size();
-
-
-	//OnTinGenerate();
-
-	CRect Rect;
-	GetClientRect(&Rect);
-	InvalidateRect(&Rect);
-
-
-}
+//void CGISTinView::OnTinDensify()
+//{
+//	MyPoint *pNewPointData = NULL;
+//	TRIANGLE *pNewTinHead = NULL;
+//	long nNewStartPointID, nNewEndPointID;
+//	nNewStartPointID = nNewEndPointID = -1;
+//	vector<long> vecSave;
+//	for (int i = 0; i < nPathPointNum; i++) {
+//		long PID = pPathPoints[i].ID;
+//		for (TRIANGLE* pTri = tinHead; pTri != NULL; pTri = pTri->next) {
+//			if (pTri->ID1 == PID || pTri->ID2 == PID || pTri->ID3 == PID) {
+//				if (PointData[pTri->ID1].visited) {
+//
+//					vecSave.push_back(pTri->ID1);
+//					if (pTri->ID1 == nStartPointID) {
+//						nNewStartPointID = vecSave.size() - 1;
+//					}
+//					if (pTri->ID1 == nEndPointID) {
+//						nNewEndPointID = vecSave.size() - 1;
+//					}
+//					PointData[pTri->ID1].visited = false;
+//				}
+//				if (PointData[pTri->ID2].visited) {
+//					vecSave.push_back(pTri->ID2);
+//					if (pTri->ID2 == nStartPointID) {
+//						nNewStartPointID = vecSave.size() - 1;
+//					}
+//					if (pTri->ID2 == nEndPointID) {
+//						nNewEndPointID = vecSave.size() - 1;
+//					}
+//					PointData[pTri->ID2].visited = false;
+//				}
+//				if (PointData[pTri->ID3].visited) {
+//					vecSave.push_back(pTri->ID3);
+//					if (pTri->ID3 == nStartPointID) {
+//						nNewStartPointID = vecSave.size() - 1;
+//					}
+//					if (pTri->ID3 == nEndPointID) {
+//						nNewEndPointID = vecSave.size() - 1;
+//					}
+//					PointData[pTri->ID3].visited = false;
+//				}
+//			}
+//		}
+//	}
+//
+//
+//	CString cstr;
+//	cstr.Format("新点数：%d\n", vecSave.size());
+//	AfxMessageBox(cstr);
+//
+//	cstr.Format("%d, %d\n", nStartPointID, PointData[vecSave[nNewStartPointID]].ID); //验证通过
+//	AfxMessageBox(cstr);
+//
+//	cstr.Format("%d, %d\n", nEndPointID, PointData[vecSave[nNewEndPointID]].ID); //验证通过
+//	AfxMessageBox(cstr);
+//
+//	nStartPointID = nNewStartPointID;
+//	nEndPointID = nNewEndPointID;
+//
+//	pNewPointData = new MyPoint[vecSave.size()];
+//	for (int i = 0; i < vecSave.size(); i++) {
+//		memcpy(pNewPointData + i, PointData + vecSave[i], sizeof(MyPoint));
+//		pNewPointData[i].ID = i;
+//	}
+//
+//	delete[]PointData;
+//	PointData = pNewPointData;
+//	pointNumber = vecSave.size();
+//
+//
+//	//OnTinGenerate();
+//
+//	CRect Rect;
+//	GetClientRect(&Rect);
+//	InvalidateRect(&Rect);
+//
+//
+//}
 
 void CGISTinView::OnTopoConstruct()
 {
@@ -2252,25 +2232,35 @@ void CGISTinView::OnRasterOpen()
 	}
 	else
 		return;
-	//CString cstr;
-	//AfxExtractSubString(cstr, TheFileName, TheFileName.FindOneOf("\\"));
-    MyDataPackage *pDataPackage = ReadRasterData(TheFilePath.GetBuffer());
-	AssignEdgeAttribute(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+
+    MyDataPackage *pDataPackage = ReadRasterData(TheFilePath);
+	
 	switch (pDataPackage->nDataType)
 	{
 	case 1:
+		AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
 		break;
 	case 2:
+		AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
 		break;
 	case 3:
+		AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
 		break;
 	case 4:
+		AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
 		break;
 	case 5:
+		AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
 		break;
 	case 6:
+		AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
 		break;
 	default:
+		AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
 		break;
 	}
+
+	CRect Rect;
+	GetClientRect(&Rect);
+	InvalidateRect(&Rect);
 }

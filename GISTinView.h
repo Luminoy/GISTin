@@ -107,10 +107,10 @@ private:
    ArcSet   *Arc;
    MyPoint* & PointData = Point;
 
-   TRIANGLE *tinHead;
+   //TRIANGLE *tinHead;
    PNT *pStartPoint, *pEndPoint;   //起始点的指针
    long nStartPointID, nEndPointID;//起始点的ID
-   LineSet m_LineSet;            
+   //LineSet m_LineSet;            
    TopoPoint *m_TopoPoint;       
    MyPoint *pPathPoints;           // 存放结果数据点
    long nPathPointNum;             // 路径点个数
@@ -146,6 +146,7 @@ public:
    //void PointTopologyConstruct();
    //void CreateTriPath();
    int  ModifyPointData(int PID, PNT * pData);
+   template<typename DT>
    void AssignEdgeAttribute(DCEL ** pEdges, int count, MyDataPackage *pPackage);
    void AssignEdgeAttribute(DCEL ** pEdges, const char * szFileName);
    void CreateLinePath();
@@ -171,7 +172,7 @@ public:
 private:   
 
 public: 
-	COLORREF colors[14];
+	COLORREF colors[30];
 	//定义辅助格网
     Raster_Infor rasterobject;
     double m_dReadFileTime;	
