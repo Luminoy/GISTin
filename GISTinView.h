@@ -117,6 +117,7 @@ private:
    TopoPointCollection pTopoPointCollection;//点线的拓扑信息
    unordered_map<Point2d, int, hash_func, hash_cmp> mHashTable;
    vector<vector<PNT> > m_vecInputSHPGroups;
+   MyDataPackage *pDataPackage;
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -152,11 +153,20 @@ public:
    void CreateLinePath();
    void AccuSort(vector<int>& vec, int left, int right);
    void OnPathConstruction();
-   void OnTinDensify();
 
    MyDataPackage * ReadRasterData(const char * filename);
    vector<PNT> ReadShapefile(const char * filename, char * format);
    void SaveShapeFile(const char * filename, const char * format, MyPoint * pData, int count);
+
+   //template<typename DT>
+   //bool LineOfSight(MyPoint& l1, MyPoint& l2, DT *pData, int nWidth, int nHeight);
+
+   template<typename DT>
+   bool DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_y, DT * space, int nWidth, int nHeight);
+
+   template<typename DT>
+   bool CGISTinView::LineOfSight(int x1, int y1, int x2, int y2, DT *pData, int nWidth, int nHeight);
+
 protected:
 	
 	// create from serialization only
@@ -255,6 +265,10 @@ public:
 	afx_msg void OnTopoConstruct();
 	afx_msg void OnCreatePath();
 	afx_msg void OnRasterOpen();
+	template<typename DT>
+	void PathOptimize(MyPoint *pPath, int nPointCount, MyDataPackage *pDataPackage);
+	void OnPathSmooth();
+	
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

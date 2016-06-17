@@ -132,6 +132,7 @@ BEGIN
         MENUITEM "保存",                          ID_SHAPEFILE_SAVE
         MENUITEM "建立拓扑关系",                      ID_TOPOCONSTRUCT
         MENUITEM "路径生成",                        ID_CREATEPATH
+        MENUITEM "路径优化",                        32829
     END
     POPUP "栅格数据"
     BEGIN

@@ -56,10 +56,13 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_TESTCASE, &CGISTinView::OnTestCase)
 	ON_COMMAND(ID_CREATEPATH, &CGISTinView::OnCreatePath)
 	ON_COMMAND(ID_RASTER_OPEN, &CGISTinView::OnRasterOpen)
+	ON_COMMAND(ID_PATH_SMOOTH, &CGISTinView::OnPathSmooth)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
 // CGISTinView construction/destruction
+
+
 MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	GDALAllRegister();
 	GDALDataset *pData = (GDALDataset *)GDALOpen(filename, GA_ReadOnly);
@@ -76,7 +79,7 @@ MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	double NodataValue = pBand->GetNoDataValue();
 	DT_8U *pReturnData = new DT_8U[nWidth*nHeight];
 	pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
-	
+
 	// 设置1为可通行，0为不可通行
 	//for (int i = 0; i < nHeight; i++) {
 	//	for (int j = 0; j < nWidth; j++) {
@@ -246,28 +249,7 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 				}
 			}
 		}
-		//if (pnt_count >= 2) {
-		//	PNT pFirst, pSecond;
-		//	//pFirst = pSecond = NULL;
 
-		//	long idx_begin = PNTSet.size() - pnt_count;
-		//	long idx_end = PNTSet.size() - 1;
-		//	pFirst = PNTSet[idx_begin];
-		//	for (int k = 1; k <= pnt_count; ++k) {
-		//		pSecond = PNTSet[idx_begin + k % pnt_count];
-		//		double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
-		//		if (dis > MAX_DIS_VALUE) {
-		//			int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % 10 == 0 ? 0 : 1); // 应该将原长线段划分为parts段
-		//			double dx = (pSecond.x - pFirst.x) / parts;
-		//			double dy = (pSecond.y - pFirst.y) / parts;
-		//			for (int i = 1; i < parts; i++) {
-		//				PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
-		//				PNTSet.push_back(NewPNT);
-		//			}
-		//		}
-		//		pFirst = pSecond;
-		//	}
-		//}
 		OGRDataSource::DestroyDataSource(poDS);
 		OGRCleanupAll();
 		return PNTSet;
@@ -343,7 +325,9 @@ CGISTinView::CGISTinView()
 	pPathPoints = NULL;
 	nPathPointNum = 0;
 	nStartPointID = nEndPointID = -1;
+	pDataPackage = NULL;
 }
+
 CGISTinView::~CGISTinView()
 {
 }
@@ -1724,161 +1708,6 @@ void CGISTinView::PointLineTopoConstruct() {
 
 }
 
-//void CGISTinView::LineTopologyConstruct() {
-//	//TriangleSet m_TriSet;
-//	//Line* pLineColl = new Line[_MAX_ARCNUM_aMap];
-//	Line *pNext, *pCurr;
-//	pCurr = m_LineSet.pLines;
-//	m_LineSet.pLines = NULL;
-//	while (pCurr != NULL) {
-//		pNext = pCurr->next;
-//		delete pCurr;
-//		pCurr = pNext;
-//	}
-//	long count = 0;
-//	Line *LineHead, *LineRear;
-//	LineHead = LineRear = NULL;
-//	for (TRIANGLE *t = tinHead; t != NULL; t = t->next) {
-//		// 先判断ID1、ID2组成的边是否已经存在(已存在的边则不用再次建立拓扑关系)
-//		if (!IsLineExist(t->ID1, t->ID2)) {
-//			Line* pLine = new Line;
-//			pLine->LID = count++;
-//			pLine->ID1 = t->ID1;
-//			pLine->ID2 = t->ID2;
-//			//判断顶点ID3是否在顶点ID1、ID2组成的直线的左边，-1为左，1为右
-//			if (OnLeft(PointData[t->ID3], PointData[t->ID1], PointData[t->ID2]) == -1) {
-//				pLine->LeftTri = t->g_SeqNum;
-//				pLine->RightTri = t->p3tin ? t->p3tin->g_SeqNum : -1;
-//			}
-//			else
-//			{
-//				pLine->RightTri = t->g_SeqNum;
-//				pLine->LeftTri = t->p3tin ? t->p3tin->g_SeqNum : -1;
-//			}
-//			if (count == 1) {
-//				m_LineSet.pLines = pLine;
-//				LineRear = pLine;
-//			}
-//			else
-//			{
-//				LineRear->next = pLine;
-//				LineRear = LineRear->next;
-//			}
-//
-//
-//		}
-//		//判断顶点ID2是否在顶点ID1、ID3组成的直线的左边，-1为左，1为右
-//		if (!IsLineExist(t->ID1, t->ID3)) {
-//			Line* pLine = new Line;
-//			pLine->LID = count++;
-//			pLine->ID1 = t->ID1;
-//			pLine->ID2 = t->ID3;
-//			if (OnLeft(PointData[t->ID2], PointData[t->ID1], PointData[t->ID3]) == -1) {
-//				pLine->LeftTri = t->g_SeqNum;
-//				pLine->RightTri = t->p2tin ? t->p2tin->g_SeqNum : -1;
-//			}
-//			else
-//			{
-//				pLine->RightTri = t->g_SeqNum;
-//				pLine->LeftTri = t->p2tin ? t->p2tin->g_SeqNum : -1;
-//			}
-//			LineRear->next = pLine;
-//			LineRear = LineRear->next;
-//		}
-//		//判断顶点ID1是否在顶点ID2、ID3组成的直线的左边，-1为左，1为右
-//		if (!IsLineExist(t->ID2, t->ID3)) {
-//			Line* pLine = new Line;
-//			pLine->LID = count++;
-//			pLine->ID1 = t->ID2;
-//			pLine->ID2 = t->ID3;
-//			if (OnLeft(PointData[t->ID1], PointData[t->ID2], PointData[t->ID3]) == -1) {
-//				pLine->LeftTri = t->g_SeqNum;
-//				pLine->RightTri = t->p1tin ? t->p1tin->g_SeqNum : -1;
-//			}
-//			else
-//			{
-//				pLine->RightTri = t->g_SeqNum;
-//				pLine->LeftTri = t->p1tin ? t->p1tin->g_SeqNum : -1;
-//			}
-//			LineRear->next = pLine;
-//			LineRear = LineRear->next;
-//		}
-//		//memcpy(pLineColl + count - 3, pLine, 3 * sizeof(Line));
-//	}
-//	m_LineSet.nLineNum = count;
-//}
-//
-//void CGISTinView::PointTopologyConstruct() {
-//	if (m_TopoPoint) {
-//		delete[]m_TopoPoint;
-//	}
-//	m_TopoPoint = new TopoPoint[pointNumber];
-//	Line* pLineHead = m_LineSet.pLines;
-//	while (pLineHead != NULL) {
-//		//CString cstr;
-//		//cstr.Format("%d\n", pLineHead->LID);
-//		//AfxMessageBox(cstr);
-//		m_TopoPoint[pLineHead->ID1].pConnectLineIDs[m_TopoPoint[pLineHead->ID1].nLineCount++] = pLineHead->LID;
-//		m_TopoPoint[pLineHead->ID2].pConnectLineIDs[m_TopoPoint[pLineHead->ID2].nLineCount++] = pLineHead->LID;
-//		pLineHead = pLineHead->next;
-//	}
-//}
-//
-//void CGISTinView::CreateTriPath()
-//{
-//	if (nStartTri == -1 || nEndTri == -1) {
-//		AfxMessageBox("未设置起点或终点！");
-//		return;
-//	}
-//
-//	std::queue<TRIANGLE*> queTri;
-//
-//	for (TRIANGLE *tri = tinHead; tri != NULL; tri = tri->next) {
-//		tri->visited = 0;
-//		if (tri->g_SeqNum == nStartTri) {
-//			pStartTri = tri;
-//		}
-//		if (tri->g_SeqNum == nEndTri) {
-//			pEndTri = tri;
-//		}
-//	}
-//	// 最短路径计算
-//	queTri.push(pStartTri);
-//	while (queTri.size() != 0) {
-//		TRIANGLE *T = queTri.front();
-//		T->visited = 1;
-//		if (T->p1tin && !T->p1tin->visited) {
-//			double accu = T->accu + (T->weight + T->p1tin->weight) / 2;
-//			if (!T->p1tin->parentTri || accu < T->p1tin->accu) {
-//				T->p1tin->accu = accu;
-//				T->p1tin->parentTri = T;
-//			}
-//			queTri.push(T->p1tin);
-//		}
-//		if (T->p2tin && !T->p2tin->visited) {
-//			double accu = T->accu + (T->weight + T->p2tin->weight) / 2;
-//			if (!T->p2tin->parentTri || accu < T->p2tin->accu) {
-//				T->p2tin->accu = accu;
-//				T->p2tin->parentTri = T;
-//			}
-//			queTri.push(T->p2tin);
-//		}
-//		if (T->p3tin && !T->p3tin->visited) {
-//			double accu = T->accu + (T->weight + T->p3tin->weight) / 2;
-//			if (!T->p3tin->parentTri || accu < T->p3tin->accu) {
-//				T->p3tin->accu = accu;
-//				T->p3tin->parentTri = T;
-//			}
-//			queTri.push(T->p3tin);
-//		}
-//		queTri.pop();
-//	}
-//
-//	CRect Rect;
-//	GetClientRect(&Rect);
-//	InvalidateRect(&Rect);
-//}
-
 int CGISTinView::ModifyPointData(int PID, PNT *pData) {
 	if (PID == -1) {
 		MyPoint* PointData2;
@@ -2233,7 +2062,7 @@ void CGISTinView::OnRasterOpen()
 	else
 		return;
 
-    MyDataPackage *pDataPackage = ReadRasterData(TheFilePath);
+    pDataPackage = ReadRasterData(TheFilePath);
 	
 	switch (pDataPackage->nDataType)
 	{
@@ -2263,4 +2092,324 @@ void CGISTinView::OnRasterOpen()
 	CRect Rect;
 	GetClientRect(&Rect);
 	InvalidateRect(&Rect);
+}
+
+
+void CGISTinView::OnPathSmooth()
+{
+	switch (pDataPackage->nDataType)
+	{
+	case 1:
+		PathOptimize<DT_8U>(pPathPoints, nPathPointNum, pDataPackage);
+		break;
+	case 2:
+		PathOptimize<DT_16U>(pPathPoints, nPathPointNum, pDataPackage);
+		break;
+	case 3:
+		PathOptimize<DT_16S>(pPathPoints, nPathPointNum, pDataPackage);
+		break;
+	case 4:
+		PathOptimize<DT_32U>(pPathPoints, nPathPointNum, pDataPackage);
+		break;
+	case 5:
+		PathOptimize<DT_32S>(pPathPoints, nPathPointNum, pDataPackage);
+		break;
+	case 6:
+		PathOptimize<DT_32F>(pPathPoints, nPathPointNum, pDataPackage);
+		break;
+	default:
+		PathOptimize<DT_64F>(pPathPoints, nPathPointNum, pDataPackage);
+		break;
+	}
+
+
+	CRect Rect;
+	GetClientRect(&Rect);
+	InvalidateRect(&Rect);
+}
+
+
+template<typename DT>
+void CGISTinView::PathOptimize(MyPoint *pPath, int nPointCount, MyDataPackage *pPackage) {
+	if (nPointCount <= 2)	return;
+
+	int nWidth = pPackage->nWidth;
+	int nHeight = pPackage->nHeight;
+	float UpperBound = pPackage->fUpperBound;
+	float LeftBound = pPackage->fLeftBound;
+	float PixelWidth = pPackage->fPixelWidth;
+	float PixelHeight = pPackage->fPixelHeight;
+
+	MyPoint *pNewPoints = new MyPoint[nPathPointNum];
+	int nNewPointNum = 0;
+	DT *pData = static_cast<DT *>(pPackage->pData);
+	memcpy(pNewPoints + nNewPointNum++, pPath , sizeof(MyPoint));
+	int r0, c0, r1, c1;
+	for (int i = 1; i < nPointCount; i++) {
+		c0 = (pNewPoints[nNewPointNum - 1].x - LeftBound) / PixelWidth;
+		r0 = (pNewPoints[nNewPointNum - 1].y - UpperBound) / PixelHeight;
+
+		c1 = (pPath[i].x - LeftBound) / PixelWidth;
+		r1 = (pPath[i].y - UpperBound) / PixelHeight;
+
+		if (DDA_Line_2<DT>(r0, c0, r1, c1, pData, nWidth, nHeight)) {
+			continue;
+		}
+		memcpy(pNewPoints + nNewPointNum++, pPath + i - 1, sizeof(MyPoint));
+	}
+	memcpy(pNewPoints + nNewPointNum++, pPath + nPointCount - 1, sizeof(MyPoint));
+
+	delete[] pPathPoints;
+	pPathPoints = new MyPoint[nNewPointNum];
+	memcpy(pPathPoints, pNewPoints, nNewPointNum * sizeof(MyPoint));
+	nPathPointNum = nNewPointNum;;
+	delete[] pNewPoints;
+}
+//
+//template<typename DT>
+//bool CGISTinView::LineOfSight(MyPoint& l1, MyPoint& l2, DT *pData, int nWidth, int nHeight)
+//{
+//	// This line of sight check uses only integer values. First it checks whether the movement along the x or the y axis is longer and moves along the longer
+//	// one cell by cell. dx and dy specify how many cells to move in each direction. Suppose dx is longer and we are moving along the x axis. For each
+//	// cell we pass in the x direction, we increase variable f by dy, which is initially 0. When f >= dx, we move along the y axis and set f -= dx. This way,
+//	// after dx movements along the x axis, we also move dy moves along the y axis.
+//
+//	// x and y values correspond to corners, not cells.
+//	int x1 = l1.x; // Originate from this cell.
+//	int y1 = l1.y;
+//
+//	int x2 = l2.x; // Move to this cell.
+//	int y2 = l2.y;
+//
+//	int dy = l2.y - l1.y;
+//	int dx = l2.x - l1.x;
+//
+//	int f = 0;
+//	int sy, sx; // Direction of movement. Value can be either 1 or -1.
+//
+//				// The x and y locations correspond to corners, not cells. We might need to check different surrounding cells depending on the direction we do the
+//				// line of sight check. The following values are usedto determine which cell to check to see if it is unblocked.
+//	int x_offset, y_offset;
+//
+//	if (dy < 0) {
+//		dy = -dy;
+//		sy = -1;
+//		y_offset = 0; // Cell is to the North
+//	}
+//	else {
+//		sy = 1;
+//		y_offset = 1; // Cell is to the South
+//	}
+//
+//	if (dx < 0) {
+//		dx = -dx;
+//		sx = -1;
+//		x_offset = 0; // Cell is to the West
+//	}
+//	else {
+//		sx = 1;
+//		x_offset = 1; // Cell is to the East
+//	}
+//
+//	if (dx >= dy) { // Move along the x axis and increment/decrement y when f >= dx.
+//		while (x1 != x2) {
+//			f = f + dy;
+//			if (f >= dx) {  // We are changing rows, we might need to check two cells this iteration.
+//				if (!pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+//					return false;
+//
+//				y1 = y1 + sy;
+//				f = f - dx;
+//			}
+//
+//			if (f != 0) {   // If f == 0, then we are crossing the row at a corner point and we don't need to check both cells.
+//				if (!pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+//					return false;
+//			}
+//
+//			if (dy == 0) {  // If we are moving along a horizontal line, either the north or the south cell should be unblocked.
+//				if (!pData[(x1 + x_offset) * nWidth + y1] && !pData[(x1 + x_offset) * nWidth + (y1 + 1)])
+//					return false;
+//			}
+//
+//			x1 += sx;
+//		}
+//	}
+//
+//	else {  //if (dx < dy). Move along the y axis and increment/decrement x when f >= dy.
+//		while (y1 != y2) {
+//			f = f + dx;
+//			if (f >= dy) {
+//				if (!pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+//					return false;
+//
+//				x1 = x1 + sx;
+//				f = f - dy;
+//			}
+//
+//			if (f != 0) {
+//				if (!pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+//					return false;
+//			}
+//
+//			if (dx == 0) {
+//				if (!pData[x1 * nWidth + (y1 + y_offset)] && !pData[(x1 + 1) * nWidth + (y1 + x_offset)])
+//					return false;
+//			}
+//
+//			y1 += sy;
+//		}
+//	}
+//	return true;
+//}
+
+template<typename DT>
+bool CGISTinView::DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_y, DT* space, int nWidth, int nHeight)
+{
+	int x1 = curr_x, y1 = curr_y, x2 = parent_x, y2 = parent_y;
+	double k, dx, dy, x, y, xend, yend;
+
+	dx = x2 - x1;
+	dy = y2 - y1;
+	if (curr_x == parent_x && curr_y == parent_y) return false;
+	if (abs(dx) >= abs(dy))
+	{
+		k = dy / dx;
+		if (dx > 0)
+		{
+			x = x1;
+			y = y1;
+			xend = x2;
+		}
+		else
+		{
+			x = x2;
+			y = y2;
+			xend = x1;
+		}
+		while (x <= xend)
+		{
+			if (y < 0 || y > nWidth - 1)	break;
+			if (space[(int)x * nWidth + (int)floor(y)] == 1)	return false;
+			y = y + k;
+			x = x + 1;
+		}
+	}
+	else
+	{
+		k = dx / dy;
+		if (dy > 0)
+		{
+			x = x1;
+			y = y1;
+			yend = y2;
+		}
+		else
+		{
+			x = x2;
+			y = y2;
+			yend = y1;
+		}
+		while (y <= yend)
+		{
+			if (x < 0 || x > nHeight - 1)	break;
+			if (space[(int)floor(x) * nWidth + (int)y] == 1)	return false;
+			x = x + k;
+			y = y + 1;
+		}
+	}
+	return true;
+}
+
+// 貌似该函数有点问题！
+template<typename DT>
+bool CGISTinView::LineOfSight(int x1, int y1, int x2, int y2, DT *pData, int nWidth, int nHeight)
+{
+	// This line of sight check uses only integer values. First it checks whether the movement along the x or the y axis is longer and moves along the longer
+	// one cell by cell. dx and dy specify how many cells to move in each direction. Suppose dx is longer and we are moving along the x axis. For each
+	// cell we pass in the x direction, we increase variable f by dy, which is initially 0. When f >= dx, we move along the y axis and set f -= dx. This way,
+	// after dx movements along the x axis, we also move dy moves along the y axis.
+
+	// x and y values correspond to corners, not cells.
+
+	int dy = y2 - y1;
+	int dx = x2 - x1;
+
+	int f = 0;
+	int sy, sx; // Direction of movement. Value can be either 1 or -1.
+
+				// The x and y locations correspond to corners, not cells. We might need to check different surrounding cells depending on the direction we do the
+				// line of sight check. The following values are usedto determine which cell to check to see if it is unblocked.
+	int x_offset, y_offset;
+
+	if (dy < 0) {
+		dy = -dy;
+		sy = -1;
+		y_offset = 0; // Cell is to the North
+	}
+	else {
+		sy = 1;
+		y_offset = 1; // Cell is to the South
+	}
+
+	if (dx < 0) {
+		dx = -dx;
+		sx = -1;
+		x_offset = 0; // Cell is to the West
+	}
+	else {
+		sx = 1;
+		x_offset = 1; // Cell is to the East
+	}
+
+	if (dx >= dy) { // Move along the x axis and increment/decrement y when f >= dx.
+		while (x1 != x2) {
+			f = f + dy;
+			if (f >= dx) {  // We are changing rows, we might need to check two cells this iteration.
+				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+					return false;
+
+				y1 = y1 + sy;
+				f = f - dx;
+			}
+
+			if (f != 0) {   // If f == 0, then we are crossing the row at a corner point and we don't need to check both cells.
+				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+					return false;
+			}
+
+			if (dy == 0) {  // If we are moving along a horizontal line, either the north or the south cell should be unblocked.
+				if (pData[(x1 + x_offset) * nWidth + y1] || pData[(x1 + x_offset) * nWidth + (y1 + 1)])
+					return false;
+			}
+
+			x1 += sx;
+		}
+	}
+
+	else {  //if (dx < dy). Move along the y axis and increment/decrement x when f >= dy.
+		while (y1 != y2) {
+			f = f + dx;
+			if (f >= dy) {
+				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+					return false;
+
+				x1 = x1 + sx;
+				f = f - dy;
+			}
+
+			if (f != 0) {
+				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+					return false;
+			}
+
+			if (dx == 0) {
+				if (pData[x1 * nWidth + (y1 + y_offset)] || pData[(x1 + 1) * nWidth + (y1 + x_offset)])
+					return false;
+			}
+
+			y1 += sy;
+		}
+	}
+	return true;
 }
