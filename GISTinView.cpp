@@ -66,6 +66,7 @@ END_MESSAGE_MAP()
 
 MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	GDALAllRegister();
+	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
 	GDALDataset *pData = (GDALDataset *)GDALOpen(filename, GA_ReadOnly);
 	if (pData == NULL) {
 		AfxMessageBox("ERRROR!");
@@ -2424,13 +2425,22 @@ void CGISTinView::GenerateRandomPoint(MyPoint *P1, MyPoint *P2, int &x, int &y) 
 }
 
 void CGISTinView::GenerateRandomPoint(double x0, double y0, double x1, double y1, double &x, double &y) {
-	int dx = x1 - x0;
-	int dy = y1 - y0;
+	double dx = x1 - x0;
+	double dy = y1 - y0;
 
-	x = x0 + rand() % dx;
-	y = y0 + rand() % dy;
+	if (dx > 1e-3)
+		x = x0 + modf((double)rand(), &dx);
+	else
+		x = x0;
+	if (dy > 1e-3)
+		y = y0 + modf((double)rand(), &dy);
+	else
+		y = y0;
 }
 
+inline double CGISTinView::DistanceOfTwoPoints(double x1, double y1, double x2, double y2) {
+	return sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2));
+}
 
 void CGISTinView::OnPointDensify()
 {
@@ -2468,28 +2478,44 @@ void CGISTinView::OnPointDensify()
 		}
 	}
 
-	int total_num = nPathPointNum + vecPoints.size();
+	int origin_num = vecPoints.size();
+	int total_num = origin_num * 3;
 	MyPoint *pNewPoints = new MyPoint[total_num];
 	for (int i = 0; i < vecPoints.size(); i++) {
 		pNewPoints[i].x = vecPoints[i]->x;
 		pNewPoints[i].y = vecPoints[i]->y;
+
+		//重新确定起点与终点的ID
+		if (vecPoints[i]->x == pPathPoints[0].x && vecPoints[i]->y == pPathPoints[0].y) {
+			nStartPointID = i;
+		}
+		if (vecPoints[i]->x == pPathPoints[nPathPointNum - 1].x && vecPoints[i]->y == pPathPoints[nPathPointNum - 1].y) {
+			nEndPointID = i;
+		}
 	}
-	memcpy(pNewPoints + vecPoints.size(), pPathPoints, sizeof(MyPoint) * nPathPointNum);
-	nStartPointID = vecPoints.size() - 1;
-	nEndPointID = nPathPointNum + vecPoints.size() - 1;
+
+	//nStartPointID = vecPoints.size() - 1;
+	//nEndPointID = nPathPointNum + vecPoints.size() - 1;
 
 	double x, y;
-	for (int i = total_num; i < total_num * 3; ) {
-		int idx1 = rand() % nPathPointNum;
-		int idx2 = rand() % vecPoints.size();
+	for (int i = origin_num; i < total_num; ) {
+		int idx1 = rand() % origin_num;
+		int idx2 = rand() % origin_num;
+		if (idx1 == idx2) {
+			continue;
+		}
 		double x0 = pPathPoints[idx1].x;
 		double y0 = pPathPoints[idx1].y;
 		double x1 = vecPoints[idx2]->x;
 		double y1 = vecPoints[idx2]->y;
-		if (x0 == x1 && y0 == y1) {
-			continue;
-		}
 		GenerateRandomPoint(x0, y0, x1, y1, x, y);
+		int k = 0;
+		for (; k < i; k++) {
+			double dis = DistanceOfTwoPoints(pNewPoints[k].x, pNewPoints[k].y, x, y);
+			if (dis < MIN_DIS_VALUE)
+				break;
+		}
+		if (k != i)	continue;
 		pNewPoints[i].x = x;
 		pNewPoints[i++].y = y;
 	}
@@ -2504,57 +2530,56 @@ void CGISTinView::OnPointDensify()
 	AfxMessageBox(cstr);
 }
 
-
-HBITMAP CopyScreenToBitmap(LPRECT lpRect)
-{
-	HDC hScrDC, hMemDC;
-	// 屏幕和内存设备描述表
-	HBITMAP hBitmap, hOldBitmap;
-	// 位图句柄
-	int        nX, nY, nX2, nY2;
-	// 选定区域坐标
-	int        nWidth, nHeight;
-	// 位图宽度和高度
-	int        xScrn, yScrn;
-	// 屏幕分辨率
-	// 确保选定区域不为空矩形
-	if (IsRectEmpty(lpRect))
-		return NULL;
-	//为屏幕创建设备描述表
-	hScrDC = CreateDC(_T("DISPLAY"), NULL, NULL, NULL);
-	//为屏幕设备描述表创建兼容的内存设备描述表
-	hMemDC = CreateCompatibleDC(hScrDC);
-	// 获得选定区域坐标
-	nX = lpRect->left;
-	nY = lpRect->top;
-	nX2 = lpRect->right;
-	nY2 = lpRect->bottom;
-	// 获得屏幕分辨率
-	xScrn = GetDeviceCaps(hScrDC, HORZRES);
-	yScrn = GetDeviceCaps(hScrDC, VERTRES);
-	//确保选定区域是可见的
-	if (nX < 0)
-		nX = 0;
-	if (nY < 0)
-		nY = 0;
-	if (nX2 > xScrn)
-		nX2 = xScrn;
-	if (nY2 > yScrn)
-		nY2 = yScrn;
-	nWidth = nX2 - nX;
-	nHeight = nY2 - nY;
-	// 创建一个与屏幕设备描述表兼容的位图
-	hBitmap = CreateCompatibleBitmap(hScrDC, nWidth, nHeight);
-	// 把新位图选到内存设备描述表中
-	hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
-	// 把屏幕设备描述表拷贝到内存设备描述表中
-	BitBlt(hMemDC, 0, 0, nWidth, nHeight, hScrDC, nX, nY, SRCCOPY);
-	//得到屏幕位图的句柄
-	hBitmap = (HBITMAP)SelectObject(hMemDC, hOldBitmap);
-	//清除 
-	DeleteDC(hScrDC);
-	DeleteDC(hMemDC);
-	// 返回位图句柄
-	return hBitmap;
-}
+//HBITMAP CopyScreenToBitmap(LPRECT lpRect)
+//{
+//	HDC hScrDC, hMemDC;
+//	// 屏幕和内存设备描述表
+//	HBITMAP hBitmap, hOldBitmap;
+//	// 位图句柄
+//	int        nX, nY, nX2, nY2;
+//	// 选定区域坐标
+//	int        nWidth, nHeight;
+//	// 位图宽度和高度
+//	int        xScrn, yScrn;
+//	// 屏幕分辨率
+//	// 确保选定区域不为空矩形
+//	if (IsRectEmpty(lpRect))
+//		return NULL;
+//	//为屏幕创建设备描述表
+//	hScrDC = CreateDC(_T("DISPLAY"), NULL, NULL, NULL);
+//	//为屏幕设备描述表创建兼容的内存设备描述表
+//	hMemDC = CreateCompatibleDC(hScrDC);
+//	// 获得选定区域坐标
+//	nX = lpRect->left;
+//	nY = lpRect->top;
+//	nX2 = lpRect->right;
+//	nY2 = lpRect->bottom;
+//	// 获得屏幕分辨率
+//	xScrn = GetDeviceCaps(hScrDC, HORZRES);
+//	yScrn = GetDeviceCaps(hScrDC, VERTRES);
+//	//确保选定区域是可见的
+//	if (nX < 0)
+//		nX = 0;
+//	if (nY < 0)
+//		nY = 0;
+//	if (nX2 > xScrn)
+//		nX2 = xScrn;
+//	if (nY2 > yScrn)
+//		nY2 = yScrn;
+//	nWidth = nX2 - nX;
+//	nHeight = nY2 - nY;
+//	// 创建一个与屏幕设备描述表兼容的位图
+//	hBitmap = CreateCompatibleBitmap(hScrDC, nWidth, nHeight);
+//	// 把新位图选到内存设备描述表中
+//	hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
+//	// 把屏幕设备描述表拷贝到内存设备描述表中
+//	BitBlt(hMemDC, 0, 0, nWidth, nHeight, hScrDC, nX, nY, SRCCOPY);
+//	//得到屏幕位图的句柄
+//	hBitmap = (HBITMAP)SelectObject(hMemDC, hOldBitmap);
+//	//清除 
+//	DeleteDC(hScrDC);
+//	DeleteDC(hMemDC);
+//	// 返回位图句柄
+//	return hBitmap;
+//}
 
