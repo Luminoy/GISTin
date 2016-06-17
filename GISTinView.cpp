@@ -57,6 +57,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_CREATEPATH, &CGISTinView::OnCreatePath)
 	ON_COMMAND(ID_RASTER_OPEN, &CGISTinView::OnRasterOpen)
 	ON_COMMAND(ID_PATH_SMOOTH, &CGISTinView::OnPathSmooth)
+	ON_COMMAND(ID_POINT_DENSIFY, &CGISTinView::OnPointDensify)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2143,9 +2144,9 @@ void CGISTinView::PathOptimize(MyPoint *pPath, int nPointCount, MyDataPackage *p
 	MyPoint *pNewPoints = new MyPoint[nPathPointNum];
 	int nNewPointNum = 0;
 	DT *pData = static_cast<DT *>(pPackage->pData);
-	memcpy(pNewPoints + nNewPointNum++, pPath , sizeof(MyPoint));
+	memcpy(pNewPoints + nNewPointNum++, pPath + nPointCount - 1 , sizeof(MyPoint));
 	int r0, c0, r1, c1;
-	for (int i = 1; i < nPointCount; i++) {
+	for (int i = nPointCount - 2; i >= 0; i--) {
 		c0 = (pNewPoints[nNewPointNum - 1].x - LeftBound) / PixelWidth;
 		r0 = (pNewPoints[nNewPointNum - 1].y - UpperBound) / PixelHeight;
 
@@ -2155,9 +2156,9 @@ void CGISTinView::PathOptimize(MyPoint *pPath, int nPointCount, MyDataPackage *p
 		if (DDA_Line_2<DT>(r0, c0, r1, c1, pData, nWidth, nHeight)) {
 			continue;
 		}
-		memcpy(pNewPoints + nNewPointNum++, pPath + i - 1, sizeof(MyPoint));
+		memcpy(pNewPoints + nNewPointNum++, pPath + i + 1, sizeof(MyPoint));
 	}
-	memcpy(pNewPoints + nNewPointNum++, pPath + nPointCount - 1, sizeof(MyPoint));
+	memcpy(pNewPoints + nNewPointNum++, pPath, sizeof(MyPoint));
 
 	delete[] pPathPoints;
 	pPathPoints = new MyPoint[nNewPointNum];
@@ -2322,94 +2323,238 @@ bool CGISTinView::DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_y,
 }
 
 // 貌似该函数有点问题！
-template<typename DT>
-bool CGISTinView::LineOfSight(int x1, int y1, int x2, int y2, DT *pData, int nWidth, int nHeight)
-{
-	// This line of sight check uses only integer values. First it checks whether the movement along the x or the y axis is longer and moves along the longer
-	// one cell by cell. dx and dy specify how many cells to move in each direction. Suppose dx is longer and we are moving along the x axis. For each
-	// cell we pass in the x direction, we increase variable f by dy, which is initially 0. When f >= dx, we move along the y axis and set f -= dx. This way,
-	// after dx movements along the x axis, we also move dy moves along the y axis.
+//template<typename DT>
+//bool CGISTinView::LineOfSight(int x1, int y1, int x2, int y2, DT *pData, int nWidth, int nHeight)
+//{
+//	// This line of sight check uses only integer values. First it checks whether the movement along the x or the y axis is longer and moves along the longer
+//	// one cell by cell. dx and dy specify how many cells to move in each direction. Suppose dx is longer and we are moving along the x axis. For each
+//	// cell we pass in the x direction, we increase variable f by dy, which is initially 0. When f >= dx, we move along the y axis and set f -= dx. This way,
+//	// after dx movements along the x axis, we also move dy moves along the y axis.
+//
+//	// x and y values correspond to corners, not cells.
+//
+//	int dy = y2 - y1;
+//	int dx = x2 - x1;
+//
+//	int f = 0;
+//	int sy, sx; // Direction of movement. Value can be either 1 or -1.
+//
+//				// The x and y locations correspond to corners, not cells. We might need to check different surrounding cells depending on the direction we do the
+//				// line of sight check. The following values are usedto determine which cell to check to see if it is unblocked.
+//	int x_offset, y_offset;
+//
+//	if (dy < 0) {
+//		dy = -dy;
+//		sy = -1;
+//		y_offset = 0; // Cell is to the North
+//	}
+//	else {
+//		sy = 1;
+//		y_offset = 1; // Cell is to the South
+//	}
+//
+//	if (dx < 0) {
+//		dx = -dx;
+//		sx = -1;
+//		x_offset = 0; // Cell is to the West
+//	}
+//	else {
+//		sx = 1;
+//		x_offset = 1; // Cell is to the East
+//	}
+//
+//	if (dx >= dy) { // Move along the x axis and increment/decrement y when f >= dx.
+//		while (x1 != x2) {
+//			f = f + dy;
+//			if (f >= dx) {  // We are changing rows, we might need to check two cells this iteration.
+//				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+//					return false;
+//
+//				y1 = y1 + sy;
+//				f = f - dx;
+//			}
+//
+//			if (f != 0) {   // If f == 0, then we are crossing the row at a corner point and we don't need to check both cells.
+//				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+//					return false;
+//			}
+//
+//			if (dy == 0) {  // If we are moving along a horizontal line, either the north or the south cell should be unblocked.
+//				if (pData[(x1 + x_offset) * nWidth + y1] || pData[(x1 + x_offset) * nWidth + (y1 + 1)])
+//					return false;
+//			}
+//
+//			x1 += sx;
+//		}
+//	}
+//
+//	else {  //if (dx < dy). Move along the y axis and increment/decrement x when f >= dy.
+//		while (y1 != y2) {
+//			f = f + dx;
+//			if (f >= dy) {
+//				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+//					return false;
+//
+//				x1 = x1 + sx;
+//				f = f - dy;
+//			}
+//
+//			if (f != 0) {
+//				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
+//					return false;
+//			}
+//
+//			if (dx == 0) {
+//				if (pData[x1 * nWidth + (y1 + y_offset)] || pData[(x1 + 1) * nWidth + (y1 + x_offset)])
+//					return false;
+//			}
+//
+//			y1 += sy;
+//		}
+//	}
+//	return true;
+//}
 
-	// x and y values correspond to corners, not cells.
+void CGISTinView::GenerateRandomPoint(MyPoint *P1, MyPoint *P2, int &x, int &y) {
+	int dx = abs(P1->x - P2->x);
+	int dy = abs(P1->y - P2->y);
 
-	int dy = y2 - y1;
-	int dx = x2 - x1;
-
-	int f = 0;
-	int sy, sx; // Direction of movement. Value can be either 1 or -1.
-
-				// The x and y locations correspond to corners, not cells. We might need to check different surrounding cells depending on the direction we do the
-				// line of sight check. The following values are usedto determine which cell to check to see if it is unblocked.
-	int x_offset, y_offset;
-
-	if (dy < 0) {
-		dy = -dy;
-		sy = -1;
-		y_offset = 0; // Cell is to the North
-	}
-	else {
-		sy = 1;
-		y_offset = 1; // Cell is to the South
-	}
-
-	if (dx < 0) {
-		dx = -dx;
-		sx = -1;
-		x_offset = 0; // Cell is to the West
-	}
-	else {
-		sx = 1;
-		x_offset = 1; // Cell is to the East
-	}
-
-	if (dx >= dy) { // Move along the x axis and increment/decrement y when f >= dx.
-		while (x1 != x2) {
-			f = f + dy;
-			if (f >= dx) {  // We are changing rows, we might need to check two cells this iteration.
-				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
-					return false;
-
-				y1 = y1 + sy;
-				f = f - dx;
-			}
-
-			if (f != 0) {   // If f == 0, then we are crossing the row at a corner point and we don't need to check both cells.
-				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
-					return false;
-			}
-
-			if (dy == 0) {  // If we are moving along a horizontal line, either the north or the south cell should be unblocked.
-				if (pData[(x1 + x_offset) * nWidth + y1] || pData[(x1 + x_offset) * nWidth + (y1 + 1)])
-					return false;
-			}
-
-			x1 += sx;
-		}
-	}
-
-	else {  //if (dx < dy). Move along the y axis and increment/decrement x when f >= dy.
-		while (y1 != y2) {
-			f = f + dx;
-			if (f >= dy) {
-				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
-					return false;
-
-				x1 = x1 + sx;
-				f = f - dy;
-			}
-
-			if (f != 0) {
-				if (pData[(x1 + x_offset) * nWidth + (y1 + y_offset)])
-					return false;
-			}
-
-			if (dx == 0) {
-				if (pData[x1 * nWidth + (y1 + y_offset)] || pData[(x1 + 1) * nWidth + (y1 + x_offset)])
-					return false;
-			}
-
-			y1 += sy;
-		}
-	}
-	return true;
+	x = P1->x + rand() % dx;
+	y = P1->y + rand() % dy;
 }
+
+void CGISTinView::GenerateRandomPoint(double x0, double y0, double x1, double y1, double &x, double &y) {
+	int dx = x1 - x0;
+	int dy = y1 - y0;
+
+	x = x0 + rand() % dx;
+	y = y0 + rand() % dy;
+}
+
+
+void CGISTinView::OnPointDensify()
+{
+	// TODO: 在此添加命令处理程序代码
+	bool *visited = new bool[pointNumber];
+	memset(visited, 0, pointNumber * sizeof(bool));
+	vector<Point2d *> vecPoints;
+	for (int i = 0; i < nPathPointNum; i++) {
+		MyPoint& pPoint = pPathPoints[i];
+		Point2d point(pPoint.x, pPoint.y);
+		int PID = mHashTable[point];
+		visited[PID] = true;
+		for (int k = 0; k < pTopoPointCollection[PID].nLineCount; k++) {
+			int LID = pTopoPointCollection[PID].pConnectLineIDs[k];
+			DCEL *pEdge = m_pDelaunayEdge[LID];
+			point.x = pEdge->e[1].oData->x;
+			point.y = pEdge->e[1].oData->y;
+			int P1 = mHashTable[point];
+			point.x = pEdge->e[0].oData->x;
+			point.y = pEdge->e[0].oData->y;
+			int P2 = mHashTable[point];
+
+			if (!visited[P1]) {
+				if (pEdge->e[0].oData->x == pPathPoints[i].x && pEdge->e[0].oData->y == pPathPoints[i].y) {
+					vecPoints.push_back(pEdge->e[1].oData);
+					visited[P1] = true;
+				}
+			}
+			if(!visited[P2]) {
+				if (pEdge->e[1].oData->x == pPathPoints[i].x && pEdge->e[1].oData->y == pPathPoints[i].y) {
+					vecPoints.push_back(pEdge->e[0].oData);
+					visited[P2] = true;
+				}
+			}
+		}
+	}
+
+	int total_num = nPathPointNum + vecPoints.size();
+	MyPoint *pNewPoints = new MyPoint[total_num];
+	for (int i = 0; i < vecPoints.size(); i++) {
+		pNewPoints[i].x = vecPoints[i]->x;
+		pNewPoints[i].y = vecPoints[i]->y;
+	}
+	memcpy(pNewPoints + vecPoints.size(), pPathPoints, sizeof(MyPoint) * nPathPointNum);
+	nStartPointID = vecPoints.size() - 1;
+	nEndPointID = nPathPointNum + vecPoints.size() - 1;
+
+	double x, y;
+	for (int i = total_num; i < total_num * 3; ) {
+		int idx1 = rand() % nPathPointNum;
+		int idx2 = rand() % vecPoints.size();
+		double x0 = pPathPoints[idx1].x;
+		double y0 = pPathPoints[idx1].y;
+		double x1 = vecPoints[idx2]->x;
+		double y1 = vecPoints[idx2]->y;
+		if (x0 == x1 && y0 == y1) {
+			continue;
+		}
+		GenerateRandomPoint(x0, y0, x1, y1, x, y);
+		pNewPoints[i].x = x;
+		pNewPoints[i++].y = y;
+	}
+	
+	
+	delete[]PointData;
+	PointData = pNewPoints;
+	pointNumber = total_num;
+
+	CString cstr;
+	cstr.Format("total_num: %d\n", total_num);
+	AfxMessageBox(cstr);
+}
+
+
+HBITMAP CopyScreenToBitmap(LPRECT lpRect)
+{
+	HDC hScrDC, hMemDC;
+	// 屏幕和内存设备描述表
+	HBITMAP hBitmap, hOldBitmap;
+	// 位图句柄
+	int        nX, nY, nX2, nY2;
+	// 选定区域坐标
+	int        nWidth, nHeight;
+	// 位图宽度和高度
+	int        xScrn, yScrn;
+	// 屏幕分辨率
+	// 确保选定区域不为空矩形
+	if (IsRectEmpty(lpRect))
+		return NULL;
+	//为屏幕创建设备描述表
+	hScrDC = CreateDC(_T("DISPLAY"), NULL, NULL, NULL);
+	//为屏幕设备描述表创建兼容的内存设备描述表
+	hMemDC = CreateCompatibleDC(hScrDC);
+	// 获得选定区域坐标
+	nX = lpRect->left;
+	nY = lpRect->top;
+	nX2 = lpRect->right;
+	nY2 = lpRect->bottom;
+	// 获得屏幕分辨率
+	xScrn = GetDeviceCaps(hScrDC, HORZRES);
+	yScrn = GetDeviceCaps(hScrDC, VERTRES);
+	//确保选定区域是可见的
+	if (nX < 0)
+		nX = 0;
+	if (nY < 0)
+		nY = 0;
+	if (nX2 > xScrn)
+		nX2 = xScrn;
+	if (nY2 > yScrn)
+		nY2 = yScrn;
+	nWidth = nX2 - nX;
+	nHeight = nY2 - nY;
+	// 创建一个与屏幕设备描述表兼容的位图
+	hBitmap = CreateCompatibleBitmap(hScrDC, nWidth, nHeight);
+	// 把新位图选到内存设备描述表中
+	hOldBitmap = (HBITMAP)SelectObject(hMemDC, hBitmap);
+	// 把屏幕设备描述表拷贝到内存设备描述表中
+	BitBlt(hMemDC, 0, 0, nWidth, nHeight, hScrDC, nX, nY, SRCCOPY);
+	//得到屏幕位图的句柄
+	hBitmap = (HBITMAP)SelectObject(hMemDC, hOldBitmap);
+	//清除 
+	DeleteDC(hScrDC);
+	DeleteDC(hMemDC);
+	// 返回位图句柄
+	return hBitmap;
+}
+
