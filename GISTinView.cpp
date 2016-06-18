@@ -58,6 +58,8 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_RASTER_OPEN, &CGISTinView::OnRasterOpen)
 	ON_COMMAND(ID_PATH_SMOOTH, &CGISTinView::OnPathSmooth)
 	ON_COMMAND(ID_POINT_DENSIFY, &CGISTinView::OnPointDensify)
+	ON_COMMAND(ID_SAVE_POINT, &CGISTinView::OnSavePoint)
+	ON_COMMAND(ID_SAVE_LINE, &CGISTinView::OnSaveLine)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -258,12 +260,12 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 	}
 }
 
-void CGISTinView::SaveShapeFile(const char *filename, const char *format, MyPoint* pData, int count) {
+void CGISTinView::SaveShapeFile(const char *filename, MyPoint* pData, int count) {
 	::OGRRegisterAll();
 	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
-	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(format);
+	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
 	OGRDataSource *poDS = poDriver->CreateDataSource(filename);
-	OGRLayer *poLayer = poDS->CreateLayer("Points", NULL, wkbPoint);
+	OGRLayer *poLayer = poDS->CreateLayer(filename, NULL, wkbPoint);
 	OGRFieldDefn ogrField("NO", OFTInteger);
 	ogrField.SetWidth(10);
 	poLayer->CreateField(&ogrField);
@@ -275,6 +277,46 @@ void CGISTinView::SaveShapeFile(const char *filename, const char *format, MyPoin
 		point.setX(pData[i].x);
 		point.setY(pData[i].y);
 		poFeature->SetGeometry(&point);
+
+		if (poLayer->CreateFeature(poFeature) != OGRERR_NONE) {
+			AfxMessageBox("创建矢量数据出错！");
+			return;
+		}
+		OGRFeature::DestroyFeature(poFeature);
+	}
+
+	OGRDataSource::DestroyDataSource(poDS);
+	OGRCleanupAll();
+}
+
+void CGISTinView::SaveShapeFile(const char *filename, DCEL** pData, int count) {
+	::OGRRegisterAll();
+	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
+	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
+	OGRDataSource *poDS = poDriver->CreateDataSource(filename);
+	OGRLayer *poLayer = poDS->CreateLayer(filename, NULL, wkbLineString);
+	OGRFieldDefn ogrField("NO", OFTInteger);
+	ogrField.SetWidth(10);
+	poLayer->CreateField(&ogrField);
+
+	for (int i = 0; i < count; ++i) {
+		OGRFeature *poFeature = OGRFeature::CreateFeature(poLayer->GetLayerDefn());
+		poFeature->SetField("NO", i);
+		OGRLineString pLine;
+		OGRPoint P0, P1;
+
+		P0.setX(pData[i]->e[0].oData->x);
+		P0.setY(pData[i]->e[0].oData->y);
+
+		P1.setX(pData[i]->e[1].oData->x);
+		P1.setY(pData[i]->e[1].oData->y);
+
+		pLine.setNumPoints(2);
+		pLine.setPoint(0, &P0);
+		pLine.setPoint(1, &P1);
+
+		poFeature->SetGeometry(&pLine);
+
 		if (poLayer->CreateFeature(poFeature) != OGRERR_NONE) {
 			AfxMessageBox("创建矢量数据出错！");
 			return;
@@ -485,8 +527,9 @@ void CGISTinView::OnLButtonUp(UINT nFlags, CPoint point)
 		nEndPointID = ModifyPointData(nEndPointID, pEndPoint);
 		InvalidateRect(&Rect); break;
 	case TESTCASE:	
+		pid = -1;
 		for (int i = 0; i < pointNumber; i++) {
-			if (abs(mpt2.x - PointData[i].x) < 0.05 && abs(mpt2.y - PointData[i].y) < 0.05) {
+			if ((abs(mpt2.x - PointData[i].x) < 0.1) && (abs(mpt2.y - PointData[i].y) < 0.1)) {
 				pid = i;
 				break;
 			}
@@ -1659,6 +1702,33 @@ void CGISTinView::OnShapefileOpen()
 	RefreshScreen();
 }
 
+void CGISTinView::OnSavePoint()
+{
+	CString  TheFileName;
+	CFileDialog  FileDlg(TRUE, NULL, "dendify.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|", AfxGetMainWnd());
+
+	if (FileDlg.DoModal() == IDOK)
+		TheFileName = FileDlg.GetPathName();
+	else
+		return;
+
+	SaveShapeFile(TheFileName, PointData, pointNumber);
+}
+
+
+void CGISTinView::OnSaveLine()
+{
+	CString  TheFileName;
+	CFileDialog  FileDlg(TRUE, NULL, "edges.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|", AfxGetMainWnd());
+
+	if (FileDlg.DoModal() == IDOK)
+		TheFileName = FileDlg.GetPathName();
+	else
+		return;
+
+	SaveShapeFile(TheFileName, m_pDelaunayEdge, m_nDeEdgeCount);
+}
+
 int CGISTinView::OnLeft(MyPoint P, MyPoint P1, MyPoint P2)
 {
 	if ((P2.x - P1.x)*(P.y - P1.y) - (P2.y - P1.y)*(P.x - P1.x) > 0)
@@ -1682,6 +1752,8 @@ int CGISTinView::GetPointIDByXY(double x, double y) {
 void CGISTinView::PointLineTopoConstruct() {
 	// 建立查找表，unordered_map
 	clock_t t1 = clock();
+	mHashTable.clear();
+	pTopoPointCollection.Destroy();
 	for (int i = 0; i<pointNumber; i++)
 	{
 		Point2d p2d(Point[i].x, Point[i].y);
@@ -1889,7 +1961,7 @@ void CGISTinView::CreateLinePath() {
 	CString cstr;
 
 	clock_t t2 = clock();
-	cstr.Format("path calcalation: %.3lf\n", double(t2 - t1) / 1000.);
+	cstr.Format("path calcalation: %.3lf s.\n", double(t2 - t1) / 1000.);
 	AfxMessageBox(cstr);
 
 	cstr.Format(" ");
@@ -1956,87 +2028,6 @@ void CGISTinView::OnPathConstruction()
 	}
 	CreateLinePath();
 }
-
-// 三角网加密
-//void CGISTinView::OnTinDensify()
-//{
-//	MyPoint *pNewPointData = NULL;
-//	TRIANGLE *pNewTinHead = NULL;
-//	long nNewStartPointID, nNewEndPointID;
-//	nNewStartPointID = nNewEndPointID = -1;
-//	vector<long> vecSave;
-//	for (int i = 0; i < nPathPointNum; i++) {
-//		long PID = pPathPoints[i].ID;
-//		for (TRIANGLE* pTri = tinHead; pTri != NULL; pTri = pTri->next) {
-//			if (pTri->ID1 == PID || pTri->ID2 == PID || pTri->ID3 == PID) {
-//				if (PointData[pTri->ID1].visited) {
-//
-//					vecSave.push_back(pTri->ID1);
-//					if (pTri->ID1 == nStartPointID) {
-//						nNewStartPointID = vecSave.size() - 1;
-//					}
-//					if (pTri->ID1 == nEndPointID) {
-//						nNewEndPointID = vecSave.size() - 1;
-//					}
-//					PointData[pTri->ID1].visited = false;
-//				}
-//				if (PointData[pTri->ID2].visited) {
-//					vecSave.push_back(pTri->ID2);
-//					if (pTri->ID2 == nStartPointID) {
-//						nNewStartPointID = vecSave.size() - 1;
-//					}
-//					if (pTri->ID2 == nEndPointID) {
-//						nNewEndPointID = vecSave.size() - 1;
-//					}
-//					PointData[pTri->ID2].visited = false;
-//				}
-//				if (PointData[pTri->ID3].visited) {
-//					vecSave.push_back(pTri->ID3);
-//					if (pTri->ID3 == nStartPointID) {
-//						nNewStartPointID = vecSave.size() - 1;
-//					}
-//					if (pTri->ID3 == nEndPointID) {
-//						nNewEndPointID = vecSave.size() - 1;
-//					}
-//					PointData[pTri->ID3].visited = false;
-//				}
-//			}
-//		}
-//	}
-//
-//
-//	CString cstr;
-//	cstr.Format("新点数：%d\n", vecSave.size());
-//	AfxMessageBox(cstr);
-//
-//	cstr.Format("%d, %d\n", nStartPointID, PointData[vecSave[nNewStartPointID]].ID); //验证通过
-//	AfxMessageBox(cstr);
-//
-//	cstr.Format("%d, %d\n", nEndPointID, PointData[vecSave[nNewEndPointID]].ID); //验证通过
-//	AfxMessageBox(cstr);
-//
-//	nStartPointID = nNewStartPointID;
-//	nEndPointID = nNewEndPointID;
-//
-//	pNewPointData = new MyPoint[vecSave.size()];
-//	for (int i = 0; i < vecSave.size(); i++) {
-//		memcpy(pNewPointData + i, PointData + vecSave[i], sizeof(MyPoint));
-//		pNewPointData[i].ID = i;
-//	}
-//
-//	delete[]PointData;
-//	PointData = pNewPointData;
-//	pointNumber = vecSave.size();
-//
-//
-//	//OnTinGenerate();
-//
-//	CRect Rect;
-//	GetClientRect(&Rect);
-//	InvalidateRect(&Rect);
-//
-//
-//}
 
 void CGISTinView::OnTopoConstruct()
 {
@@ -2428,14 +2419,17 @@ void CGISTinView::GenerateRandomPoint(double x0, double y0, double x1, double y1
 	double dx = x1 - x0;
 	double dy = y1 - y0;
 
-	if (dx > 1e-3)
-		x = x0 + modf((double)rand(), &dx);
-	else
-		x = x0;
-	if (dy > 1e-3)
-		y = y0 + modf((double)rand(), &dy);
-	else
-		y = y0;
+	x = x0 + dx / 2;
+	y = y0 + dy / 2;
+
+	//if (dx > 1e-3)
+	//	x = x0 + modf((double)rand(), &dx);
+	//else
+	//	x = x0;
+	//if (dy > 1e-3)
+	//	y = y0 + modf((double)rand(), &dy);
+	//else
+	//	y = y0;
 }
 
 inline double CGISTinView::DistanceOfTwoPoints(double x1, double y1, double x2, double y2) {
@@ -2452,7 +2446,7 @@ void CGISTinView::OnPointDensify()
 		MyPoint& pPoint = pPathPoints[i];
 		Point2d point(pPoint.x, pPoint.y);
 		int PID = mHashTable[point];
-		visited[PID] = true;
+		//visited[PID] = true;           //bug!! 导致终止点未加入点集！！
 		for (int k = 0; k < pTopoPointCollection[PID].nLineCount; k++) {
 			int LID = pTopoPointCollection[PID].pConnectLineIDs[k];
 			DCEL *pEdge = m_pDelaunayEdge[LID];
@@ -2479,18 +2473,26 @@ void CGISTinView::OnPointDensify()
 	}
 
 	int origin_num = vecPoints.size();
-	int total_num = origin_num * 3;
+	int total_num = origin_num * 5;
 	MyPoint *pNewPoints = new MyPoint[total_num];
+
+	CString str1;
+	str1.Format("EndPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nEndPointID, pPathPoints[0].x, pPathPoints[0].y, PointData[nEndPointID].x, PointData[nEndPointID].y);
+	AfxMessageBox(str1);
+
+	str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y, PointData[nStartPointID].x, PointData[nStartPointID].y);
+	AfxMessageBox(str1);
+
 	for (int i = 0; i < vecPoints.size(); i++) {
 		pNewPoints[i].x = vecPoints[i]->x;
 		pNewPoints[i].y = vecPoints[i]->y;
 
 		//重新确定起点与终点的ID
 		if (vecPoints[i]->x == pPathPoints[0].x && vecPoints[i]->y == pPathPoints[0].y) {
-			nStartPointID = i;
+			nEndPointID = i;
 		}
 		if (vecPoints[i]->x == pPathPoints[nPathPointNum - 1].x && vecPoints[i]->y == pPathPoints[nPathPointNum - 1].y) {
-			nEndPointID = i;
+			nStartPointID = i;
 		}
 	}
 
@@ -2499,15 +2501,15 @@ void CGISTinView::OnPointDensify()
 
 	double x, y;
 	for (int i = origin_num; i < total_num; ) {
-		int idx1 = rand() % origin_num;
-		int idx2 = rand() % origin_num;
+		int idx1 = rand() % i;
+		int idx2 = rand() % i;
 		if (idx1 == idx2) {
 			continue;
 		}
-		double x0 = pPathPoints[idx1].x;
-		double y0 = pPathPoints[idx1].y;
-		double x1 = vecPoints[idx2]->x;
-		double y1 = vecPoints[idx2]->y;
+		double x0 = pNewPoints[idx1].x;
+		double y0 = pNewPoints[idx1].y;
+		double x1 = pNewPoints[idx2].x;
+		double y1 = pNewPoints[idx2].y;
 		GenerateRandomPoint(x0, y0, x1, y1, x, y);
 		int k = 0;
 		for (; k < i; k++) {
@@ -2528,6 +2530,10 @@ void CGISTinView::OnPointDensify()
 	CString cstr;
 	cstr.Format("total_num: %d\n", total_num);
 	AfxMessageBox(cstr);
+
+	CRect Rect;
+	GetClientRect(&Rect);
+	InvalidateRect(&Rect);
 }
 
 //HBITMAP CopyScreenToBitmap(LPRECT lpRect)
@@ -2582,4 +2588,5 @@ void CGISTinView::OnPointDensify()
 //	// 返回位图句柄
 //	return hBitmap;
 //}
+
 

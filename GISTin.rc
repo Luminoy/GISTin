@@ -129,7 +129,11 @@ BEGIN
     POPUP "shapefile"
     BEGIN
         MENUITEM "打开",                          ID_SHAPEFILE_OPEN
-        MENUITEM "保存",                          ID_SHAPEFILE_SAVE
+        POPUP "保存"
+        BEGIN
+            MENUITEM "点要素",                         ID_SAVE_POINT
+            MENUITEM "线要素",                         ID_SAVE_LINE
+        END
         MENUITEM "建立拓扑关系",                      ID_TOPOCONSTRUCT
         MENUITEM "路径生成",                        ID_CREATEPATH
         MENUITEM "路径优化",                        32829

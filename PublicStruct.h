@@ -88,119 +88,172 @@ struct BinaryTree
 class TopoPoint {
 public:
 	int nLineCount;
-	int MaxElementCount;
-	int *pConnectLineIDs;
-	TopoPoint() {  }
-	void CreateInstance() { nLineCount = 0; MaxElementCount = 4; pConnectLineIDs = new int[MaxElementCount]; }
+	vector<int> pConnectLineIDs;
+	TopoPoint(): nLineCount(0) {  }
 	// 摊还策略，动态分配存储空间
 	void AddLineID(int nLID) {
-		if (nLineCount == MaxElementCount) {
-			int *tmp = pConnectLineIDs;
-			try
-			{
-				pConnectLineIDs = new int[MaxElementCount * 2];
-			}
-			catch (exception ex) {
-				AfxMessageBox(_T("alloc new memory failed!"));
-				return ;
-			}
-			MaxElementCount = MaxElementCount * 2;
-			memcpy(pConnectLineIDs, tmp, nLineCount * sizeof(int));  //bug的根源是 sizeof !
-			delete []tmp;
-		}
-		pConnectLineIDs[nLineCount++] = nLID;
+		nLineCount++;
+		pConnectLineIDs.push_back(nLID);
+	}
+
+	void DestroyInstance() {
+		nLineCount = 0;
+		pConnectLineIDs.clear();
 	}
 
 	~TopoPoint() {
-		nLineCount = 0;
-		delete[]pConnectLineIDs;
+		DestroyInstance();
 	}
 };
+
+//class TopoPoint {
+//public:
+//	int nLineCount;
+//	int MaxElementCount;
+//	int *pConnectLineIDs;
+//	TopoPoint() {  }
+//	void CreateInstance() { nLineCount = 0; MaxElementCount = 10; pConnectLineIDs = new int[MaxElementCount]; }
+//	// 摊还策略，动态分配存储空间
+//	void AddLineID(int nLID) {
+//		if (nLineCount == MaxElementCount) {
+//			int *tmp = pConnectLineIDs;
+//			try
+//			{
+//				pConnectLineIDs = new int[MaxElementCount * 2];
+//			}
+//			catch (exception ex) {
+//				AfxMessageBox(_T("alloc new memory failed!"));
+//				pConnectLineIDs = tmp;
+//				return ;
+//			}
+//			MaxElementCount = MaxElementCount * 2;
+//			memcpy(pConnectLineIDs, tmp, nLineCount * sizeof(int));  //bug的根源是 sizeof !
+//			delete []tmp;
+//		}
+//		pConnectLineIDs[nLineCount++] = nLID;
+//	}
+//
+//	void DestroyInstance() {
+//		nLineCount = 0;
+//		delete[]pConnectLineIDs; 
+//		pConnectLineIDs = NULL;
+//	}
+//
+//	~TopoPoint() {
+//		DestroyInstance();
+//	}
+//};
 
 class TopoPointCollection {
 public:
 	int nPointCount;
-	int MaxElementCount;
-	TopoPoint *pTopoPoints;
-
-	TopoPointCollection(int _count = 0) :nPointCount(0), MaxElementCount(0), pTopoPoints(NULL) { }
+	vector<TopoPoint> pTopoPoints;
+	TopoPointCollection() :nPointCount(0) { }
 
 	void Initialize(int _count = 100) {
-		nPointCount = MaxElementCount = _count;
-		Alloc(nPointCount);
-	}
-
-	//延迟分配策略
-	bool Alloc(int _count) {
-		if (_count <= 0)	return true;
-		if (pTopoPoints) {
-			TopoPoint *tmp = pTopoPoints;
-			try 
-			{
-				pTopoPoints = new TopoPoint[_count];
-			}
-			catch (exception ex) {
-				return false;
-			}
-			memcpy(pTopoPoints, tmp, nPointCount);
-			// 新建部分需要初始化
-			for (int i = nPointCount; i < _count; i++) {
-				pTopoPoints[i].CreateInstance();
-			}
-			delete[]tmp;
-		}
-		else
-		{
-			try
-			{
-				pTopoPoints = new TopoPoint[_count];
-				for (int i = 0; i < _count; i++) {
-					pTopoPoints[i].CreateInstance();
-				}
-			}
-			catch (exception ex) {
-				return false;
-			}
-			//memset(pTopoPoints, 0, _count);
-		}
-		return true;
+		pTopoPoints.resize(_count);
 	}
 
 	TopoPoint& operator[](int pid) {
 		return pTopoPoints[pid];
 	}
 
-	void Free() {
-		for (int i = 0; i < nPointCount; i++) {
-			delete &pTopoPoints[i];
-		}
-		delete[]pTopoPoints;
+	void Destroy() {
+		nPointCount = 0;
+		pTopoPoints.clear();
 	}
-
-	bool AddTopoPoint(TopoPoint *pNewTopoPoint) {
-		if (MaxElementCount == nPointCount) {
-			MaxElementCount = nPointCount + 100;
-			if (!Alloc(MaxElementCount))	return false;
-		}
-		memcpy(&pTopoPoints[nPointCount++], pNewTopoPoint, sizeof(TopoPoint));
-		return true;
-	}
-
-	TopoPoint* CreateTopoPoint(int pid) {
-		if (MaxElementCount == pid) {
-			MaxElementCount = MaxElementCount + 100;
-			if (!Alloc(MaxElementCount)) {
-				AfxMessageBox(_T("alloc memory failed!"));
-				return NULL;
-			}
-		}
-		return &pTopoPoints[pid];
-	}
-
-	~TopoPointCollection() { 
-		Free();
+	~TopoPointCollection()
+	{
+		Destroy();
 	}
 };
+
+//class TopoPointCollection {
+//public:
+//	int nPointCount;
+//	int MaxElementCount;
+//	TopoPoint *pTopoPoints;
+//
+//	TopoPointCollection(int _count = 0) :nPointCount(0), MaxElementCount(0), pTopoPoints(NULL) { }
+//
+//	void Initialize(int _count = 100) {
+//		nPointCount = MaxElementCount = _count;
+//		Alloc(nPointCount);
+//	}
+//
+//	//延迟分配策略
+//	bool Alloc(int _count) {
+//		if (_count <= 0)	return true;
+//		if (pTopoPoints) {
+//			TopoPoint *tmp = pTopoPoints;
+//			try 
+//			{
+//				pTopoPoints = new TopoPoint[_count];
+//			}
+//			catch (exception ex) {
+//				return false;
+//			}
+//			memcpy(pTopoPoints, tmp, nPointCount);
+//			// 新建部分需要初始化
+//			for (int i = nPointCount; i < _count; i++) {
+//				pTopoPoints[i].CreateInstance();
+//			}
+//			delete[]tmp;
+//		}
+//		else
+//		{
+//			try
+//			{
+//				pTopoPoints = new TopoPoint[_count];
+//				for (int i = 0; i < _count; i++) {
+//					pTopoPoints[i].CreateInstance();
+//				}
+//			}
+//			catch (exception ex) {
+//				return false;
+//			}
+//			//memset(pTopoPoints, 0, _count);
+//		}
+//		return true;
+//	}
+//
+//	TopoPoint& operator[](int pid) {
+//		return pTopoPoints[pid];
+//	}
+//
+//	void Free() {
+//		if (pTopoPoints) {
+//			for (int i = 0; i < nPointCount; i++) {
+//				delete &pTopoPoints[i];
+//			}
+//			delete[]pTopoPoints;
+//		}
+//	}
+//
+//	bool AddTopoPoint(TopoPoint *pNewTopoPoint) {
+//		if (MaxElementCount == nPointCount) {
+//			MaxElementCount = nPointCount + 100;
+//			if (!Alloc(MaxElementCount))	return false;
+//		}
+//		memcpy(&pTopoPoints[nPointCount++], pNewTopoPoint, sizeof(TopoPoint));
+//		return true;
+//	}
+//
+//	TopoPoint* CreateTopoPoint(int pid) {
+//		if (MaxElementCount == pid) {
+//			MaxElementCount = MaxElementCount + 100;
+//			if (!Alloc(MaxElementCount)) {
+//				AfxMessageBox(_T("alloc memory failed!"));
+//				return NULL;
+//			}
+//		}
+//		return &pTopoPoints[pid];
+//	}
+//
+//	~TopoPointCollection() { 
+//		Free();
+//	}
+//};
 
 struct MyDataPackage {
 	void *pData;

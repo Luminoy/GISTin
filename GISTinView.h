@@ -156,7 +156,9 @@ public:
 
    MyDataPackage * ReadRasterData(const char * filename);
    vector<PNT> ReadShapefile(const char * filename, char * format);
-   void SaveShapeFile(const char * filename, const char * format, MyPoint * pData, int count);
+
+   void SaveShapeFile(const char * filename, MyPoint * pData, int count);
+   void SaveShapeFile(const char * filename, DCEL ** pData, int count);
 
    //template<typename DT>
    //bool LineOfSight(MyPoint& l1, MyPoint& l2, DT *pData, int nWidth, int nHeight);
@@ -272,6 +274,8 @@ public:
 	void CGISTinView::GenerateRandomPoint(double x0, double y0, double x1, double y1, double &x, double &y);
 	inline double DistanceOfTwoPoints(double x1, double y1, double x2, double y2);
 	void OnPointDensify();
+	afx_msg void OnSavePoint();
+	afx_msg void OnSaveLine();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp
