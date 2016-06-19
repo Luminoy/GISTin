@@ -1319,19 +1319,6 @@ void CGISTinView::OnGenerateDelaunay()
 	fprintf(fp, "%d   %.4f   %.4f\n", pointNumber, m_dReadFileTime, duration);
     fclose(fp);
 
-	//if (pointNumber > 50 * 10000)
-	//{
-	//	delete[]Point;
-	//	Point = NULL;
-	//	m_pDelaunayEdge = new DCEL*[pointNumber * 3];	     
-	//	pointNumber = 0;
- //	   
-	//}
-	//else
-	//{
-	//	m_pDelaunayEdge = new DCEL*[pointNumber * 3];
-	//}
-
 	m_pDelaunayEdge = new DCEL*[pointNumber * 3];
 	//3.收集边
 	if (maxEdge.le != NULL)
@@ -1340,6 +1327,12 @@ void CGISTinView::OnGenerateDelaunay()
         collectDcel(maxEdge.le, m_pDelaunayEdge, m_nDeEdgeCount);
 		collectDcel(maxEdge.re, m_pDelaunayEdge, m_nDeEdgeCount);
 	}
+
+	CString str;
+	str.AppendFormat("点数: %d .\n读取文件时间: %.4f s.\n构建三角网时间: %.4f s.\n", pointNumber, m_dReadFileTime, duration);
+	AfxMessageBox(str);
+
+	PointLineTopoConstruct();
 	RefreshScreen();	
 }
 
@@ -1820,12 +1813,14 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 	
 	DT *pData = static_cast<DT *>(pPackage->pData);
 	DT NoDataValue = static_cast<DT>(pPackage->dNoDataValue);
+	int r0, c0, r1, c1;
 	for (int i = 0; i < count; i++) {
-		int r, c;
-		Point2d P((pEdges[i]->e[0].oData->x + pEdges[i]->e[1].oData->x) / 2, (pEdges[i]->e[0].oData->y + pEdges[i]->e[1].oData->y) / 2);
-		c = (P.x - LeftBound) / PixelWidth;
-		r = (P.y - UpperBound) / PixelHeight;
-		pEdges[i]->walkable = (pData[r * nWidth + c] == NoDataValue ? true : false);  //定义的是障碍栅格，因此值为Nodata的像元是可通行的！！
+		c0 = (pEdges[i]->e[0].oData->x - LeftBound) / PixelWidth;
+		r0 = (pEdges[i]->e[0].oData->y - UpperBound) / PixelHeight;
+		c1 = (pEdges[i]->e[1].oData->x - LeftBound) / PixelWidth;
+		r1 = (pEdges[i]->e[1].oData->y - UpperBound) / PixelHeight;
+		bool walkable = DDA_Line_2(r0, c0, r1, c1, pData, nWidth, nHeight);
+		pEdges[i]->walkable = walkable;  //定义的是障碍栅格，因此值为Nodata的像元是可通行的！！
 	}
 }
 
