@@ -824,7 +824,7 @@ void CGISTinView::DrawDelaunay(CDC *pDC, DCEL **pEdge, long nCount, COLORREF col
 		PNT P1 = {pdecl->e[0].oData->x, pdecl->e[0].oData->y};
 		PNT P2 = {pdecl->e[1].oData->x, pdecl->e[1].oData->y};
 		GetScreenPoint(&P1); GetScreenPoint(&P2); 
-		if (!pdecl->walkable) {
+		if (pdecl->resistance) {
 			pDC->SelectObject(&GrayPen);
 			pDC->MoveTo(P1.x, P1.y);
 			pDC->LineTo(P2.x, P2.y);
@@ -1819,8 +1819,22 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 		r0 = (pEdges[i]->e[0].oData->y - UpperBound) / PixelHeight;
 		c1 = (pEdges[i]->e[1].oData->x - LeftBound) / PixelWidth;
 		r1 = (pEdges[i]->e[1].oData->y - UpperBound) / PixelHeight;
-		bool walkable = DDA_Line_2(r0, c0, r1, c1, pData, nWidth, nHeight);
-		pEdges[i]->walkable = walkable;  //定义的是障碍栅格，因此值为Nodata的像元是可通行的！！
+		double resistance = 0;
+		if (abs(r0 - r1) >= abs(c0 - c1)) {
+			double resist_0 = DDA_Line_2(r0, c0 - 1, r1, c1 - 1, pData, NoDataValue, nWidth, nHeight);
+			double resist_1 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_2 = DDA_Line_2(r0, c0 + 1, r1, c1 + 1, pData, NoDataValue, nWidth, nHeight);
+			resistance = min(resist_0, resist_2);
+		}
+		else
+		{
+			double resist_0 = DDA_Line_2(r0 - 1, c0, r1 - 1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_1 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_2 = DDA_Line_2(r0 + 1, c0, r1 + 1, c1, pData, NoDataValue, nWidth, nHeight);
+			resistance = min(resist_0, resist_2);
+		}
+		
+		pEdges[i]->resistance = resistance;  //定义的是障碍栅格，因此值为Nodata的像元是可通行的！！
 	}
 }
 
@@ -1878,7 +1892,7 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, const char* szFileName) {
 			OGRErr poErr = poLayer->Intersection(poNewLayer, poResLayer);
 			if (poErr == OGRERR_NONE) {
 				if (poResLayer->GetFeatureCount()) {
-					pEdges[i]->walkable = false;
+					pEdges[i]->resistance = 1;
 					poResLayer->DeleteFeature(0);
 				}
 			}
@@ -1910,7 +1924,7 @@ void CGISTinView::CreateLinePath() {
 		for (int i = 0; i < CurrPoint.nLineCount; i++) {
 			long LID = CurrPoint.pConnectLineIDs[i];
 			DCEL *pLine = m_pDelaunayEdge[LID];
-			if (pLine != NULL && pLine->walkable) {
+			if (pLine != NULL && !pLine->resistance) {
 				Point2d P0(pLine->e[0].oData->x, pLine->e[0].oData->y);
 				Point2d P1(pLine->e[1].oData->x, pLine->e[1].oData->y);
 				int idx1 = mHashTable[P0];
@@ -2131,6 +2145,7 @@ void CGISTinView::PathOptimize(MyPoint *pPath, int nPointCount, MyDataPackage *p
 	MyPoint *pNewPoints = new MyPoint[nPathPointNum];
 	int nNewPointNum = 0;
 	DT *pData = static_cast<DT *>(pPackage->pData);
+	DT NodataValue = static_cast<DT>(pPackage->dNoDataValue);
 	memcpy(pNewPoints + nNewPointNum++, pPath + nPointCount - 1 , sizeof(MyPoint));
 	int r0, c0, r1, c1;
 	for (int i = nPointCount - 2; i >= 0; i--) {
@@ -2140,7 +2155,7 @@ void CGISTinView::PathOptimize(MyPoint *pPath, int nPointCount, MyDataPackage *p
 		c1 = (pPath[i].x - LeftBound) / PixelWidth;
 		r1 = (pPath[i].y - UpperBound) / PixelHeight;
 
-		if (DDA_Line_2<DT>(r0, c0, r1, c1, pData, nWidth, nHeight)) {
+		if (DDA_Line_2<DT>(r0, c0, r1, c1, pData, NodataValue, nWidth, nHeight)) {
 			continue;
 		}
 		memcpy(pNewPoints + nNewPointNum++, pPath + i + 1, sizeof(MyPoint));
@@ -2252,10 +2267,11 @@ void CGISTinView::PathOptimize(MyPoint *pPath, int nPointCount, MyDataPackage *p
 //}
 
 template<typename DT>
-bool CGISTinView::DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_y, DT* space, int nWidth, int nHeight)
+double CGISTinView::DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_y, DT* space, DT &NodataValue, int nWidth, int nHeight)
 {
 	int x1 = curr_x, y1 = curr_y, x2 = parent_x, y2 = parent_y;
 	double k, dx, dy, x, y, xend, yend;
+	double resist_0 = 0, resist_1 = 0;
 
 	dx = x2 - x1;
 	dy = y2 - y1;
@@ -2278,9 +2294,17 @@ bool CGISTinView::DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_y,
 		while (x <= xend)
 		{
 			if (y < 0 || y > nWidth - 1)	break;
-			if (space[(int)x * nWidth + (int)floor(y)] == 1)	return false;
+			if (space[(int)x * nWidth + (int)floor(y)] != NodataValue) {
+				resist_1++;
+			}
+			else
+			{
+				resist_0++;
+			}
+
 			y = y + k;
 			x = x + 1;
+			
 		}
 	}
 	else
@@ -2301,13 +2325,20 @@ bool CGISTinView::DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_y,
 		while (y <= yend)
 		{
 			if (x < 0 || x > nHeight - 1)	break;
-			if (space[(int)floor(x) * nWidth + (int)y] == 1)	return false;
+			if (space[(int)floor(x) * nWidth + (int)y] != NodataValue) {
+				resist_1++;
+			}
+			else
+			{
+				resist_0++;
+			}
 			x = x + k;
 			y = y + 1;
 		}
 	}
-	return true;
+	return resist_0 >= resist_1 ? 0 : 1;
 }
+
 
 // 貌似该函数有点问题！
 //template<typename DT>

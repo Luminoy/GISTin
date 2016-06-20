@@ -11,5 +11,5 @@ DCEL::DCEL(void)
     e[1].ePrev = &(e[0]);
     e[1].eNext = &(e[0]);
     visited = false;
-	walkable = true;
+	resistance = 0;
 }
