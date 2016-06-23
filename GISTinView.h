@@ -167,6 +167,9 @@ public:
    double DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_y, DT * space, DT &NodataValue, int nWidth, int nHeight);
 
    template<typename DT>
+   double Bresenham(int x1, int y1, int x2, int y2, DT * space, DT & NodataValue, int nWidth, int nHeight);
+
+   template<typename DT>
    bool CGISTinView::LineOfSight(int x1, int y1, int x2, int y2, DT *pData, int nWidth, int nHeight);
 
 protected:

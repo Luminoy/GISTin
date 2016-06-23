@@ -1814,23 +1814,32 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 	DT *pData = static_cast<DT *>(pPackage->pData);
 	DT NoDataValue = static_cast<DT>(pPackage->dNoDataValue);
 	int r0, c0, r1, c1;
+	c0 = (684438.609 - LeftBound) / PixelWidth;
+	r0 = (3554812.137 - UpperBound) / PixelHeight;
+	c1 = (684449.774 - LeftBound) / PixelWidth;
+	r1 = (3554814.267 - UpperBound) / PixelHeight;
+
 	for (int i = 0; i < count; i++) {
 		c0 = (pEdges[i]->e[0].oData->x - LeftBound) / PixelWidth;
 		r0 = (pEdges[i]->e[0].oData->y - UpperBound) / PixelHeight;
 		c1 = (pEdges[i]->e[1].oData->x - LeftBound) / PixelWidth;
 		r1 = (pEdges[i]->e[1].oData->y - UpperBound) / PixelHeight;
+		//c0 = (684438.609 - LeftBound) / PixelWidth;
+		//r0 = (3554812.137 - UpperBound) / PixelHeight;
+		//c1 = (684449.774 - LeftBound) / PixelWidth;
+		//r1 = (3554814.267 - UpperBound) / PixelHeight;
 		double resistance = 0;
 		if (abs(r0 - r1) >= abs(c0 - c1)) {
-			double resist_0 = DDA_Line_2(r0, c0 - 1, r1, c1 - 1, pData, NoDataValue, nWidth, nHeight);
-			double resist_1 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
-			double resist_2 = DDA_Line_2(r0, c0 + 1, r1, c1 + 1, pData, NoDataValue, nWidth, nHeight);
+			double resist_0 = Bresenham(r0, c0 - 1, r1, c1 - 1, pData, NoDataValue, nWidth, nHeight);
+			double resist_1 = Bresenham(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_2 = Bresenham(r0, c0 + 1, r1, c1 + 1, pData, NoDataValue, nWidth, nHeight);
 			resistance = min(resist_0, resist_2);
 		}
 		else
 		{
-			double resist_0 = DDA_Line_2(r0 - 1, c0, r1 - 1, c1, pData, NoDataValue, nWidth, nHeight);
-			double resist_1 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
-			double resist_2 = DDA_Line_2(r0 + 1, c0, r1 + 1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_0 = Bresenham(r0 - 1, c0, r1 - 1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_1 = Bresenham(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_2 = Bresenham(r0 + 1, c0, r1 + 1, c1, pData, NoDataValue, nWidth, nHeight);
 			resistance = min(resist_0, resist_2);
 		}
 		
@@ -2275,7 +2284,7 @@ double CGISTinView::DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_
 
 	dx = x2 - x1;
 	dy = y2 - y1;
-	if (curr_x == parent_x && curr_y == parent_y) return false;
+	//if (curr_x == parent_x && curr_y == parent_y) return false;
 	if (abs(dx) >= abs(dy))
 	{
 		k = dy / dx;
@@ -2339,6 +2348,204 @@ double CGISTinView::DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_
 	return resist_0 >= resist_1 ? 0 : 1;
 }
 
+template<typename DT>
+double CGISTinView::Bresenham(int x1, int y1, int x2, int y2, DT* space, DT &NodataValue, int nWidth, int nHeight)
+{
+	int startX, startY, endX, endY;
+	double k, dx, dy, x, y, xend, yend;
+	double resist_0 = 0, resist_1 = 0;
+
+	int sign_x = 1, sign_y = 1;
+
+	
+	dx = x2 - x1;
+	dy = y2 - y1;
+
+	if (dx < 0) {
+		sign_x = -1;
+	}
+	if (dy < 0) {
+		sign_y = -1;
+	}
+	//if (curr_x == parent_x && curr_y == parent_y) return false;
+	if (abs(dx) >= abs(dy))
+	{
+		k = dy / dx;
+		if (dx > 0)
+		{
+			
+		}
+		else
+		{
+			startX = x2;
+			startY = y2;
+			endX = x1;
+			endY = y1;
+		}
+		for (; x <= endX; ++x)
+		{
+			if (x - startX != 0)
+			{
+				// 计算当前斜率
+				double currentK = abs((y - startY) / (x - startX));
+
+				// 如果当前斜率 < k, 则增加y坐标
+				if (currentK < abs(k))
+				{
+					y = y + sign_y;
+				}
+			}
+			if (space[(int)x * nWidth + (int)y] != NodataValue) {
+				resist_1++;
+			}
+			else
+			{
+				resist_0++;
+			}
+			//drawPixel(x, y);
+		}
+	}
+	else
+	{
+		k = dx / dy;
+		if (dy > 0)
+		{
+			x = x1;
+			y = y1;
+			yend = y2;
+		}
+		else
+		{
+			x = x2;
+			y = y2;
+			yend = y1;
+		}
+		for (; y <= xend; ++y)
+		{
+			if (y - startY != 0)
+			{
+				// 计算当前斜率
+				double currentK = abs((x - startX) / (y - startY));
+
+				// 如果当前斜率 < k, 则增加y坐标
+				if (currentK < abs(k))
+				{
+					x = x + sign_x;
+				}
+			}
+			if (space[(int)x * nWidth + (int)y] != NodataValue) {
+				resist_1++;
+			}
+			else
+			{
+				resist_0++;
+			}
+			//drawPixel(x, y);
+		}
+	}
+	return resist_0 >= resist_1 ? 0 : 1;
+/*	if ((x1 < 0 || x1 > nWidth - 1) ||
+		(x2 < 0 || x2 > nWidth - 1) ||
+		(y1 < 0 || y1 > nHeight - 1)||
+		(y2 < 0 || y2 > nHeight - 1)
+		)
+	{
+		return 1;
+	}
+	int startX, startY, endX, endY;
+
+	int deltaX = x2 - x1;
+	int deltaY = y2 - y1;
+
+	
+	double resist_0 = 0, resist_1 = 0;
+
+	if (abs(deltaX) > abs(deltaY)) {
+		if (x1 > x2) 
+		{
+			startX = x2;
+			startY = y2;
+			endX = x1;
+			endY = y1;
+		}
+		else
+		{
+			startX = x1;
+			startY = y1;
+			endX = x2;
+			endY = y2;
+		}
+
+		double k = abs(deltaY / deltaX);
+
+		for (double x = startX, y = startY; x <= endX; ++x)
+		{
+			if (x - startX != 0)
+			{
+				// 计算当前斜率
+				double currentK = abs((y - startY) / (x - startX));
+
+				// 如果当前斜率 < k, 则增加y坐标
+				if (currentK < k)
+				{
+					y = y + sign_y;
+				}
+			}
+			if (space[(int)x * nWidth + (int)y] != NodataValue) {
+				resist_1++;
+			}
+			else
+			{
+				resist_0++;
+			}
+			//drawPixel(x, y);
+		}
+	}
+	else
+	{
+		if (y1 > y2) {
+			startX = x2;
+			startY = y2;
+			endX = x1;
+			endY = y1;
+		}
+		else
+		{
+			startX = x1;
+			startY = y1;
+			endX = x2;
+			endY = y2;
+		}
+
+		double k = deltaX / deltaY;
+		double resist_0 = 0, resist_1 = 0;
+
+		for (double x = startX, y = startY; y <= endY; ++y)
+		{
+			if (y - startY != 0)
+			{
+				// 计算当前斜率
+				double currentK = abs((x - startX) / (y - startY));
+
+				// 如果当前斜率 < k, 则增加y坐标
+				if (currentK < k)
+				{
+					x = x + sign_x;
+				}
+			}
+			if (space[(int)x * nWidth + (int)y] != NodataValue) {
+				resist_1++;
+			}
+			else
+			{
+				resist_0++;
+			}
+			//drawPixel(x, y);
+		}
+	}
+
+	return resist_0 >= resist_1 ? 0 : 1;*/
+}
 
 // 貌似该函数有点问题！
 //template<typename DT>
