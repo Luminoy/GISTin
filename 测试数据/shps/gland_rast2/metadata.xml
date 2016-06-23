@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="zh"><Esri><CreaDate>20160623</CreaDate><CreaTime>21264700</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="c:\program files (x86)\arcgis\desktop10.1\ArcToolbox\Toolboxes\Conversion Tools.tbx\PolygonToRaster" Date="20160623" Time="212647">PolygonToRaster grass_land Shape_Le_1 "D:\users\NIMUL\Documents\Visual Studio 2015\Projects\GISTin\测试数据\shps\gland_rast2" CELL_CENTER NONE .1</Process></lineage></DataProperties></Esri></metadata>

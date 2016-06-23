@@ -1824,22 +1824,26 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 		r0 = (pEdges[i]->e[0].oData->y - UpperBound) / PixelHeight;
 		c1 = (pEdges[i]->e[1].oData->x - LeftBound) / PixelWidth;
 		r1 = (pEdges[i]->e[1].oData->y - UpperBound) / PixelHeight;
-		//c0 = (684438.609 - LeftBound) / PixelWidth;
-		//r0 = (3554812.137 - UpperBound) / PixelHeight;
-		//c1 = (684449.774 - LeftBound) / PixelWidth;
-		//r1 = (3554814.267 - UpperBound) / PixelHeight;
+		//c0 = (684324.035 - LeftBound) / PixelWidth;
+		//r0 = (3554648.483 - UpperBound) / PixelHeight;
+		//c1 = (684331.134 - LeftBound) / PixelWidth;
+		//r1 = (3554650.067 - UpperBound) / PixelHeight;
+		  
 		double resistance = 0;
+		int delta = 2;
 		if (abs(r0 - r1) >= abs(c0 - c1)) {
-			double resist_0 = Bresenham(r0, c0 - 1, r1, c1 - 1, pData, NoDataValue, nWidth, nHeight);
-			double resist_1 = Bresenham(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
-			double resist_2 = Bresenham(r0, c0 + 1, r1, c1 + 1, pData, NoDataValue, nWidth, nHeight);
-			resistance = min(resist_0, resist_2);
+			double resist_1 = DDA_Line_2(r0, c0 - delta, r1, c1 - delta, pData, NoDataValue, nWidth, nHeight);
+			double resist_2 = DDA_Line_2(r0, c0 - delta + 1, r1, c1 - delta + 1, pData, NoDataValue, nWidth, nHeight);
+			double resist_3 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_4 = DDA_Line_2(r0, c0 + delta - 1, r1, c1 + delta - 1, pData, NoDataValue, nWidth, nHeight);
+			double resist_5 = DDA_Line_2(r0, c0 + delta, r1, c1 + delta, pData, NoDataValue, nWidth, nHeight);
+			resistance = min(resist_1, resist_2), 
 		}
 		else
 		{
-			double resist_0 = Bresenham(r0 - 1, c0, r1 - 1, c1, pData, NoDataValue, nWidth, nHeight);
-			double resist_1 = Bresenham(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
-			double resist_2 = Bresenham(r0 + 1, c0, r1 + 1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_0 = DDA_Line_2(r0 - delta, c0, r1 - delta, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_1 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
+			double resist_2 = DDA_Line_2(r0 + delta, c0, r1 + delta, c1, pData, NoDataValue, nWidth, nHeight);
 			resistance = min(resist_0, resist_2);
 		}
 		
@@ -2345,12 +2349,21 @@ double CGISTinView::DDA_Line_2(int curr_x, int curr_y, int parent_x, int parent_
 			y = y + 1;
 		}
 	}
-	return resist_0 >= resist_1 ? 0 : 1;
+	return resist_0 > resist_1 ? 0 : 1;
 }
 
 template<typename DT>
 double CGISTinView::Bresenham(int x1, int y1, int x2, int y2, DT* space, DT &NodataValue, int nWidth, int nHeight)
 {
+	if ((x1 < 0 || x1 > nWidth - 1) ||
+		(x2 < 0 || x2 > nWidth - 1) ||
+		(y1 < 0 || y1 > nHeight - 1) ||
+		(y2 < 0 || y2 > nHeight - 1)
+		)
+	{
+		return 1;
+	}
+
 	int startX, startY, endX, endY;
 	double k, dx, dy, x, y, xend, yend;
 	double resist_0 = 0, resist_1 = 0;
@@ -2360,20 +2373,17 @@ double CGISTinView::Bresenham(int x1, int y1, int x2, int y2, DT* space, DT &Nod
 	
 	dx = x2 - x1;
 	dy = y2 - y1;
-
-	if (dx < 0) {
-		sign_x = -1;
-	}
-	if (dy < 0) {
-		sign_y = -1;
-	}
+	
 	//if (curr_x == parent_x && curr_y == parent_y) return false;
 	if (abs(dx) >= abs(dy))
 	{
 		k = dy / dx;
 		if (dx > 0)
 		{
-			
+			startX = x1;
+			startY = y1;
+			endX = x2;
+			endY = y2;
 		}
 		else
 		{
@@ -2382,7 +2392,8 @@ double CGISTinView::Bresenham(int x1, int y1, int x2, int y2, DT* space, DT &Nod
 			endX = x1;
 			endY = y1;
 		}
-		for (; x <= endX; ++x)
+		sign_y = endY > startY ? 1 : -1;
+		for (x = startX, y = startY; x <= endX; ++x)
 		{
 			if (x - startX != 0)
 			{
@@ -2410,17 +2421,20 @@ double CGISTinView::Bresenham(int x1, int y1, int x2, int y2, DT* space, DT &Nod
 		k = dx / dy;
 		if (dy > 0)
 		{
-			x = x1;
-			y = y1;
-			yend = y2;
+			startX = x1;
+			startY = y1;
+			endX = x2;
+			endY = y2;
 		}
 		else
 		{
-			x = x2;
-			y = y2;
-			yend = y1;
+			startX = x2;
+			startY = y2;
+			endX = x1;
+			endY = y1;
 		}
-		for (; y <= xend; ++y)
+		sign_x = endX > startX ? 1 : -1;
+		for (y = startY, x = startX; y <= endY; ++y)
 		{
 			if (y - startY != 0)
 			{
