@@ -1814,38 +1814,69 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 	DT *pData = static_cast<DT *>(pPackage->pData);
 	DT NoDataValue = static_cast<DT>(pPackage->dNoDataValue);
 	int r0, c0, r1, c1;
-	c0 = (684438.609 - LeftBound) / PixelWidth;
-	r0 = (3554812.137 - UpperBound) / PixelHeight;
-	c1 = (684449.774 - LeftBound) / PixelWidth;
-	r1 = (3554814.267 - UpperBound) / PixelHeight;
-
 	for (int i = 0; i < count; i++) {
 		c0 = (pEdges[i]->e[0].oData->x - LeftBound) / PixelWidth;
 		r0 = (pEdges[i]->e[0].oData->y - UpperBound) / PixelHeight;
 		c1 = (pEdges[i]->e[1].oData->x - LeftBound) / PixelWidth;
 		r1 = (pEdges[i]->e[1].oData->y - UpperBound) / PixelHeight;
-		//c0 = (684324.035 - LeftBound) / PixelWidth;
-		//r0 = (3554648.483 - UpperBound) / PixelHeight;
-		//c1 = (684331.134 - LeftBound) / PixelWidth;
-		//r1 = (3554650.067 - UpperBound) / PixelHeight;
-		  
+		/*c0 = (684324.035 - LeftBound) / PixelWidth;
+		r0 = (3554648.483 - UpperBound) / PixelHeight;
+		c1 = (684331.134 - LeftBound) / PixelWidth;
+		r1 = (3554650.067 - UpperBound) / PixelHeight;*/
+		//c0 = (684377.903 - LeftBound) / PixelWidth;
+		//r0 = (3554832.251 - UpperBound) / PixelHeight;
+		//c1 = (684387.140 - LeftBound) / PixelWidth;
+		//r1 = (3554833.909 - UpperBound) / PixelHeight;
+
 		double resistance = 0;
 		int delta = 2;
-		if (abs(r0 - r1) >= abs(c0 - c1)) {
-			double resist_1 = DDA_Line_2(r0, c0 - delta, r1, c1 - delta, pData, NoDataValue, nWidth, nHeight);
-			double resist_2 = DDA_Line_2(r0, c0 - delta + 1, r1, c1 - delta + 1, pData, NoDataValue, nWidth, nHeight);
-			double resist_3 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
-			double resist_4 = DDA_Line_2(r0, c0 + delta - 1, r1, c1 + delta - 1, pData, NoDataValue, nWidth, nHeight);
-			double resist_5 = DDA_Line_2(r0, c0 + delta, r1, c1 + delta, pData, NoDataValue, nWidth, nHeight);
-			resistance = min(resist_1, resist_2), 
+		int *resist = new int[(2 * delta + 1) * (2 * delta + 1)];
+		int mr = ((pEdges[i]->e[0].oData->y + pEdges[i]->e[1].oData->y) / 2 - UpperBound) / PixelHeight;
+		int mc = ((pEdges[i]->e[0].oData->x + pEdges[i]->e[1].oData->x) / 2 - LeftBound) / PixelWidth;
+		for (int k = -delta; k <= delta; k++) {
+			for (int m = -delta; m <= delta; m++) {
+				if (mr + k < 0 || mr + k > nHeight - 1 || mc + m < 0 || mc + m > nWidth - 1)
+					resist[(k + delta) * (2 * delta + 1) + m + delta] = 1;
+				else
+					resist[(k + delta) * (2 * delta + 1) + m + delta] = (pData[(mr + k) * nWidth + (mc + m)] != NoDataValue) ? 1 : 0;
+			}
+		}
+		int resist_0 = 0, resist_1 = 0;
+		for (int i = 0; i < (2 * delta + 1)*(2 * delta + 1); i++) {
+			if (resist[i] == 0) {
+				resist_0++;
+			}
+			if (resist[i] == 1) {
+				resist_1++;
+			}
+		}
+
+		if (resist_0 == 0) {
+			resistance = 1;
 		}
 		else
 		{
-			double resist_0 = DDA_Line_2(r0 - delta, c0, r1 - delta, c1, pData, NoDataValue, nWidth, nHeight);
-			double resist_1 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
-			double resist_2 = DDA_Line_2(r0 + delta, c0, r1 + delta, c1, pData, NoDataValue, nWidth, nHeight);
-			resistance = min(resist_0, resist_2);
+			resistance = 0;
 		}
+		//if (abs(r0 - r1) >= abs(c0 - c1)) {
+		//	
+		//	//double resist_1 = DDA_Line_2(r0, c0 - delta, r1, c1 - delta, pData, NoDataValue, nWidth, nHeight);
+		//	//double resist_2 = DDA_Line_2(r0, c0 - delta + 1, r1, c1 - delta + 1, pData, NoDataValue, nWidth, nHeight);
+		//	//double resist_3 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
+		//	//double resist_4 = DDA_Line_2(r0, c0 + delta - 1, r1, c1 + delta - 1, pData, NoDataValue, nWidth, nHeight);
+		//	//double resist_5 = DDA_Line_2(r0, c0 + delta, r1, c1 + delta, pData, NoDataValue, nWidth, nHeight);
+		//	resistance = min(resist[1], resist[2 * delta - 1]);
+		//}
+		//else
+		//{
+		//	for (int k = -delta; k <= delta; k++) {
+		//		resist[k + delta] = DDA_Line_2(r0 + delta, c0, r1 + delta, c1, pData, NoDataValue, nWidth, nHeight);
+		//	}
+		//	//double resist_0 = DDA_Line_2(r0 - delta, c0, r1 - delta, c1, pData, NoDataValue, nWidth, nHeight);
+		//	//double resist_1 = DDA_Line_2(r0, c0, r1, c1, pData, NoDataValue, nWidth, nHeight);
+		//	//double resist_2 = DDA_Line_2(r0 + delta, c0, r1 + delta, c1, pData, NoDataValue, nWidth, nHeight);
+		//	resistance = min(resist[1], resist[2 * delta - 1]);
+		//}
 		
 		pEdges[i]->resistance = resistance;  //定义的是障碍栅格，因此值为Nodata的像元是可通行的！！
 	}
