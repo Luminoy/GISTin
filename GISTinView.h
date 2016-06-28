@@ -116,7 +116,7 @@ private:
    long nPathPointNum;             // 路径点个数
    TopoPointCollection pTopoPointCollection;//点线的拓扑信息
    unordered_map<Point2d, int, hash_func, hash_cmp> mHashTable;
-   vector<vector<PNT> > m_vecInputSHPGroups;
+   vector<pair<vector<PNT>, double> > m_vecInputSHPGroups;
    MyDataPackage *pDataPackage;
 public:
 //1.函数成员定义(窗口操作)
@@ -130,7 +130,7 @@ public:
    void CalcBoundGraph();
    void DrawGraph(CDC*pDC);
    void DrawPoint(CDC* pDC);
-   void DrawPolygonFromPointGroups(CDC* pDC, vector<vector<PNT> >& pPointGroups);
+   void DrawPolygonFromPointGroups(CDC* pDC, vector<pair<vector<PNT>, double> >& pPointGroups);
    void DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count);
    void RefreshPoint(CDC *pDC,double x,double y, int radius = 2);
    void RefreshPoint(CDC *pDC, bool IsScreenPoint, double x, double y, COLOR PRGB, COLOR BRGB, int radius);
@@ -155,7 +155,11 @@ public:
    void OnPathConstruction();
 
    MyDataPackage * ReadRasterData(const char * filename);
-   vector<PNT> ReadShapefile(const char * filename, char * format);
+   void ReadShapefile(const char * filename, char * fieldName = NULL);
+
+   vector<PNT> SplitLongSegments(vector<pair<vector<PNT>, double> >& m_vecInputSHPGroups);
+
+   void ElimiateDuplicatePoints(vector<PNT>& PNTSet);
 
    void SaveShapeFile(const char * filename, MyPoint * pData, int count);
    void SaveShapeFile(const char * filename, DCEL ** pData, int count);

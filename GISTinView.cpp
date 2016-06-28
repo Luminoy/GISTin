@@ -118,11 +118,11 @@ MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	return pDataPackage;
 }
 
-vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
+void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 	OGRRegisterAll();
 	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
-	OGRSFDriver* poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName(format);
-	OGRDataSource *poDS = poDriver->Open(filename);
+	OGRSFDriver* poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
+	OGRDataSource *poDS = poDriver->Open(fileName);
 	vector<PNT> PNTSet;
 	if (poDS == NULL)
 	{
@@ -142,6 +142,12 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 					pnt_count = 1;
 					vector<PNT> group(pnt_count);
 
+					OGRFeature *pFeat = (OGRFeature *)poPoint;
+					double attr = 1;
+					if (fieldName) {
+						attr = pFeat->GetFieldAsDouble(fieldName);
+					}
+
 					PNT POINT;
 					POINT.x = poPoint->getX();
 					POINT.y = poPoint->getY();
@@ -149,7 +155,7 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 					//PNTSet.push_back(POINT);
 					group.push_back(POINT);
 
-					m_vecInputSHPGroups.push_back(group);
+					m_vecInputSHPGroups.push_back(make_pair(group, attr));
 
 					//char str[100];
 					//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
@@ -160,6 +166,12 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 					OGRLineString *poLine = (OGRLineString *)poGeometry;
 					pnt_count = poLine->getNumPoints();
 					vector<PNT> group(pnt_count);
+					OGRFeature *pFeat = (OGRFeature *)poLine;
+					double attr = 1;
+					if (fieldName) {
+						attr = pFeat->GetFieldAsDouble(fieldName);
+					}
+
 					for (int i = 0; i < pnt_count; i++) {
 						OGRPoint *poPoint = new OGRPoint();
 						poLine->getPoint(i, poPoint);
@@ -175,7 +187,7 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 						//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
 						//MessageBoxA(NULL, str, "coordinate", 0);
 					}
-					m_vecInputSHPGroups.push_back(group);
+					m_vecInputSHPGroups.push_back(make_pair(group, attr));
 
 				}
 				else if (wkbFlatten(poGeometry->getGeometryType()) == wkbPolygon) {
@@ -184,6 +196,35 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 					pnt_count = poRing->getNumPoints();
 					OGRPoint *poPoint = new OGRPoint();
 					vector<PNT> group;
+
+					OGRFeature *pFeat = (OGRFeature *)poPolygon;
+					OGRFeature *poFeature = poFeat;
+					OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
+					//int iField;
+					//for (iField = 0; iField < poFDefn->GetFieldCount(); iField++)
+					//{
+					//	OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
+					//	if (poFieldDefn->GetType() == OFTInteger)
+					//		int val = poFeature->GetFieldAsInteger(iField);
+					//	else if (poFieldDefn->GetType() == OFTReal)
+					//		double val = poFeature->GetFieldAsDouble(iField);
+					//	else if (poFieldDefn->GetType() == OFTString)
+					//		const char *val =  poFeature->GetFieldAsString(iField);
+					//	else
+					//		const char *val = poFeature->GetFieldAsString(iField);
+					//}
+
+					double attr = 1;
+					if (fieldName) {
+						OGRFeatureDefn *poFeatDefn = pFeat->GetDefnRef();
+						int iField = poFDefn->GetFieldIndex(fieldName);
+						OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
+						if (poFieldDefn->GetType() == OFTInteger)
+							attr = poFeature->GetFieldAsInteger(iField);
+						else if (poFieldDefn->GetType() == OFTReal)
+							attr = poFeature->GetFieldAsDouble(iField);
+					}
+
 					for (int i = 0; i < pnt_count; i++) {
 						poRing->getPoint(i, poPoint);
 
@@ -198,7 +239,7 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 						//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
 						//MessageBoxA(NULL, str, "coordinate", 0);
 					}
-					m_vecInputSHPGroups.push_back(group);
+					m_vecInputSHPGroups.push_back(make_pair(group,attr));
 
 				}
 				else if (poGeometry->getGeometryType() == wkbMultiPolygon25D) {  //加了wkbFlatten居然会导致判断为不等于！！！
@@ -208,6 +249,21 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 						OGRPolygon *poPolygon = (OGRPolygon *)poMultiPolygon->getGeometryRef(k);
 						OGRLinearRing *poRing = (OGRLinearRing *)poPolygon->getExteriorRing();
 						pnt_count = poRing->getNumPoints();
+
+						OGRFeature *pFeat = (OGRFeature *)poPolygon;
+						OGRFeature *poFeature = pFeat;
+						OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
+						double attr = 1;
+						if (fieldName) {
+							OGRFeatureDefn *poFeatDefn = pFeat->GetDefnRef();
+							int iField = poFDefn->GetFieldIndex(fieldName);
+							OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
+							if (poFieldDefn->GetType() == OFTInteger)
+								attr = poFeature->GetFieldAsInteger(iField);
+							else if (poFieldDefn->GetType() == OFTReal)
+								attr = poFeature->GetFieldAsDouble(iField);
+						}
+
 						OGRPoint *poPoint = new OGRPoint();
 						vector<PNT> group;
 						for (int i = 0; i < pnt_count; i++) {
@@ -220,7 +276,7 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 							//PNTSet.push_back(POINT);
 							group.push_back(POINT);
 						}
-						m_vecInputSHPGroups.push_back(group);
+						m_vecInputSHPGroups.push_back(make_pair(group,attr));
 					}
 				}
 				else
@@ -232,32 +288,55 @@ vector<PNT> CGISTinView::ReadShapefile(const char *filename, char *format) {
 			}
 		}
 
-		// 长线段的切割
-		for (int v = 0; v < m_vecInputSHPGroups.size(); v++) {
-			vector<PNT>& group = m_vecInputSHPGroups[v];
-			if (group.size() >= 2) {
-				for (int w = 0; w < group.size(); w++) {
-					PNT pFirst = group[w % group.size()];
-					PNT pSecond = group[(w + 1) % group.size()];
-					double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
-					if (dis > MAX_DIS_VALUE) {
-						int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % 10 == 0 ? 0 : 1); // 应该将原长线段划分为parts段
-						double dx = (pSecond.x - pFirst.x) / parts;
-						double dy = (pSecond.y - pFirst.y) / parts;
-						for (int i = 1; i < parts; i++) {
-							PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
-							PNTSet.push_back(NewPNT);
-						}
-					}
-					PNTSet.push_back(pSecond);
-				}
-			}
-		}
-
 		OGRDataSource::DestroyDataSource(poDS);
 		OGRCleanupAll();
-		return PNTSet;
 	}
+}
+
+vector<PNT> CGISTinView::SplitLongSegments(vector<pair<vector<PNT>, double> >& m_vecInputSHPGroups)
+{
+	vector<PNT> PNTSet;
+	// 长线段的切割
+	for (int v = 0; v < m_vecInputSHPGroups.size(); v++) {
+		vector<PNT>& group = m_vecInputSHPGroups[v].first;
+		if (group.size() >= 2) {
+			for (int w = 0; w < group.size(); w++) {
+				PNT pFirst = group[w % group.size()];
+				PNT pSecond = group[(w + 1) % group.size()];
+				double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
+				if (dis > MAX_DIS_VALUE) {
+					int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % 10 == 0 ? 0 : 1); // 应该将原长线段划分为parts段
+					double dx = (pSecond.x - pFirst.x) / parts;
+					double dy = (pSecond.y - pFirst.y) / parts;
+					for (int i = 1; i < parts; i++) {
+						PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
+						PNTSet.push_back(NewPNT);
+					}
+				}
+				PNTSet.push_back(pSecond);
+			}
+		}
+	}
+	return PNTSet;
+}
+
+bool PNT_CMP(const PNT &P1, const PNT &P2) {
+	return (P1.x < P2.x) || ((P1.x == P2.x) && (P1.y < P2.y));
+}
+
+bool unique_cmp(const PNT &P1, const PNT &P2) {
+	return (P1.x == P2.x) && (P1.y == P2.y);
+}
+
+void CGISTinView::ElimiateDuplicatePoints(vector<PNT> &PNTSet) {
+	int prev_count = PNTSet.size();
+	sort(PNTSet.begin(), PNTSet.end(), PNT_CMP);
+	vector<PNT>::iterator iter = unique(PNTSet.begin(), PNTSet.end(), unique_cmp);
+	PNTSet.erase(iter, PNTSet.end());
+
+	CString cstr;
+	cstr.AppendFormat("delta: %d", prev_count - PNTSet.size());
+	AfxMessageBox(cstr);
 }
 
 void CGISTinView::SaveShapeFile(const char *filename, MyPoint* pData, int count) {
@@ -974,19 +1053,24 @@ void CGISTinView::DrawPoint(CDC* pDC)
 	pDC->SelectObject(pOldBrush);
 }
 
-void CGISTinView::DrawPolygonFromPointGroups(CDC * pDC, vector<vector<PNT> >& vecPointGroups)
+void CGISTinView::DrawPolygonFromPointGroups(CDC * pDC, vector<pair<vector<PNT>, double> >& vecPointGroups)
 {
 	if (vecPointGroups.empty())	return;
 	CPen Pen;
-	Pen.CreatePen(PS_SOLID, 1, colors[BLUE]);
-	CBrush Brush;
-	Brush.CreateSolidBrush(colors[PURPLE]);
+	Pen.CreatePen(PS_SOLID, 1, colors[PURPLE]);
+	
 
 	CPen *pOldPen = pDC->SelectObject(&Pen);
-	CBrush *pOldBrush = pDC->SelectObject(&Brush);
+	
 	
 	for (int i = 0; i < vecPointGroups.size(); i++) {
-		vector<PNT> &group = vecPointGroups[i];
+		vector<PNT> &group = vecPointGroups[i].first;
+		if (vecPointGroups[i].second != 2.0) {
+			continue;
+		}
+		CBrush Brush;
+		Brush.CreateSolidBrush(colors[(int)vecPointGroups[i].second]);
+		CBrush *pOldBrush = pDC->SelectObject(&Brush);
 		pDC->BeginPath();
 		if (group.size() > 2) {
 			PNT P0(group[0]);
@@ -999,11 +1083,16 @@ void CGISTinView::DrawPolygonFromPointGroups(CDC * pDC, vector<vector<PNT> >& ve
 			}
 			pDC->LineTo(P0.x, P0.y);
 		}
+		else
+		{
+
+		}
 		pDC->EndPath();
 		pDC->FillPath();
+		pDC->SelectObject(pOldBrush);
 	}
 	pDC->SelectObject(pOldPen);
-	pDC->SelectObject(pOldBrush);
+	
 }
 
 void CGISTinView::DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count) {
@@ -1672,9 +1761,11 @@ void CGISTinView::OnShapefileOpen()
 		return;
 
 	//char *filename = CString2LPSTR(TheFileName);
-	vector<PNT> PNTSet = ReadShapefile(TheFileName, "ESRI Shapefile");
-	CalPointDistance(PNTSet); //去重
-	CalPointDistance(PNTSet);
+	ReadShapefile(TheFileName, "Id");
+	vector<PNT> PNTSet = SplitLongSegments(m_vecInputSHPGroups);
+	ElimiateDuplicatePoints(PNTSet);
+	//CalPointDistance(PNTSet); //去重
+	//CalPointDistance(PNTSet);
 	pointNumber = PNTSet.size();
 	Point = new MyPoint[pointNumber + 4];
 	for (int i = 0; i<pointNumber; i++)
