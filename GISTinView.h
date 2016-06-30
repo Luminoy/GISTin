@@ -118,6 +118,7 @@ private:
    unordered_map<Point2d, int, hash_func, hash_cmp> mHashTable;
    vector<pair<vector<PNT>, double> > m_vecInputSHPGroups;
    MyDataPackage *pDataPackage;
+
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -129,6 +130,7 @@ public:
    void CalcBoundArc();
    void CalcBoundGraph();
    void DrawGraph(CDC*pDC);
+   void DrawRasterLayer(MyDataPackage * pDataPackage);
    void DrawPoint(CDC* pDC);
    void DrawPolygonFromPointGroups(CDC* pDC, vector<pair<vector<PNT>, double> >& pPointGroups);
    void DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count);
@@ -161,6 +163,8 @@ public:
 
    void ElimiateDuplicatePoints(vector<PNT>& PNTSet);
 
+   void SavePointsToTextFile(const char * filename, MyPoint * pData, int count);
+
    void SaveShapeFile(const char * filename, MyPoint * pData, int count);
    void SaveShapeFile(const char * filename, DCEL ** pData, int count);
 
@@ -191,7 +195,9 @@ public:
 private:   
 
 public: 
-	COLORREF colors[30];
+	COLORREF colors[32];
+	CBrush   MyBrush[32];
+	CPen     MyPen[32];
 	//定义辅助格网
     Raster_Infor rasterobject;
     double m_dReadFileTime;	

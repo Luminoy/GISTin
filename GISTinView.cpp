@@ -193,6 +193,7 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 				else if (wkbFlatten(poGeometry->getGeometryType()) == wkbPolygon) {
 					OGRPolygon *poPolygon = (OGRPolygon *)poGeometry;
 					OGRLinearRing* poRing = poPolygon->getExteriorRing();
+
 					pnt_count = poRing->getNumPoints();
 					OGRPoint *poPoint = new OGRPoint();
 					vector<PNT> group;
@@ -200,19 +201,6 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 					OGRFeature *pFeat = (OGRFeature *)poPolygon;
 					OGRFeature *poFeature = poFeat;
 					OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
-					//int iField;
-					//for (iField = 0; iField < poFDefn->GetFieldCount(); iField++)
-					//{
-					//	OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
-					//	if (poFieldDefn->GetType() == OFTInteger)
-					//		int val = poFeature->GetFieldAsInteger(iField);
-					//	else if (poFieldDefn->GetType() == OFTReal)
-					//		double val = poFeature->GetFieldAsDouble(iField);
-					//	else if (poFieldDefn->GetType() == OFTString)
-					//		const char *val =  poFeature->GetFieldAsString(iField);
-					//	else
-					//		const char *val = poFeature->GetFieldAsString(iField);
-					//}
 
 					double attr = 1;
 					if (fieldName) {
@@ -241,6 +229,46 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 					}
 					m_vecInputSHPGroups.push_back(make_pair(group,attr));
 
+					int nRings = poPolygon->getNumInteriorRings();
+					for (int k = 0; k < nRings; k++) {
+						poRing = poPolygon->getInteriorRing(k);
+						pnt_count = poRing->getNumPoints();
+
+						OGRPoint *poPoint = new OGRPoint();
+						vector<PNT> group;
+
+						OGRFeature *pFeat = (OGRFeature *)poPolygon;
+						OGRFeature *poFeature = poFeat;
+						OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
+
+						double attr = 1;
+						if (fieldName) {
+							OGRFeatureDefn *poFeatDefn = pFeat->GetDefnRef();
+							int iField = poFDefn->GetFieldIndex(fieldName);
+							OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
+							if (poFieldDefn->GetType() == OFTInteger)
+								attr = poFeature->GetFieldAsInteger(iField);
+							else if (poFieldDefn->GetType() == OFTReal)
+								attr = poFeature->GetFieldAsDouble(iField);
+						}
+
+						for (int i = 0; i < pnt_count; i++) {
+							poRing->getPoint(i, poPoint);
+
+							PNT POINT;
+							POINT.x = poPoint->getX();
+							POINT.y = poPoint->getY();
+
+							//PNTSet.push_back(POINT);
+							group.push_back(POINT);
+
+							//char str[100];
+							//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
+							//MessageBoxA(NULL, str, "coordinate", 0);
+						}
+						m_vecInputSHPGroups.push_back(make_pair(group, attr));
+					}
+					
 				}
 				else if (poGeometry->getGeometryType() == wkbMultiPolygon25D) {  //加了wkbFlatten居然会导致判断为不等于！！！
 					OGRMultiPolygon *poMultiPolygon = (OGRMultiPolygon *)poGeometry;
@@ -320,7 +348,7 @@ vector<PNT> CGISTinView::SplitLongSegments(vector<pair<vector<PNT>, double> >& m
 	return PNTSet;
 }
 
-bool PNT_CMP(const PNT &P1, const PNT &P2) {
+bool pntset_cmp(const PNT &P1, const PNT &P2) {
 	return (P1.x < P2.x) || ((P1.x == P2.x) && (P1.y < P2.y));
 }
 
@@ -328,16 +356,53 @@ bool unique_cmp(const PNT &P1, const PNT &P2) {
 	return (P1.x == P2.x) && (P1.y == P2.y);
 }
 
+bool unique_shedhold(const PNT &P1, const PNT &P2) {
+	return ((abs(P1.x - P2.x) <= 0.3) || (abs(P1.y - P2.y) <= 0.3));
+}
+
 void CGISTinView::ElimiateDuplicatePoints(vector<PNT> &PNTSet) {
 	int prev_count = PNTSet.size();
-	sort(PNTSet.begin(), PNTSet.end(), PNT_CMP);
-	vector<PNT>::iterator iter = unique(PNTSet.begin(), PNTSet.end(), unique_cmp);
+	sort(PNTSet.begin(), PNTSet.end(), pntset_cmp);
+
+	vector<PNT>::iterator iter = unique(PNTSet.begin(), PNTSet.end(), unique_shedhold);
 	PNTSet.erase(iter, PNTSet.end());
 
 	CString cstr;
 	cstr.AppendFormat("delta: %d", prev_count - PNTSet.size());
 	AfxMessageBox(cstr);
 }
+
+void CGISTinView::SavePointsToTextFile(const char *filename, MyPoint* pData, int count) {
+	double xmin, xmax, ymin, ymax;
+	xmax = xmin = pData[0].x;
+	ymax = ymin = pData[0].y;
+	for (int i = 1; i < count; i++) {
+		if (xmax < pData[i].x) {
+			xmax = pData[i].x;
+		}
+		if (xmin > pData[i].x) {
+			xmin = pData[i].x;
+		}
+		if (ymax < pData[i].y) {
+			ymax = pData[i].y;
+		}
+		if (ymin > pData[i].y) {
+			ymin = pData[i].y;
+		}
+	}
+	FILE *fp = NULL;
+	fopen_s(&fp, filename, "wb+");
+	if (fp == NULL) {
+		AfxMessageBox("Write File Error！");
+		return;
+	}
+	fprintf_s(fp, "%d\r\n", count);
+	for (int i = 1; i <= count; i++) {
+		fprintf_s(fp, "%d %.3lf %.3lf\r\n", i, pData[i - 1].x - xmin, pData[i - 1].y - ymin);
+	}
+	fclose(fp);
+}
+
 
 void CGISTinView::SaveShapeFile(const char *filename, MyPoint* pData, int count) {
 	::OGRRegisterAll();
@@ -868,6 +933,11 @@ void CGISTinView::DrawGraph(CDC*pDC)
 
 	
 }
+
+void CGISTinView::DrawRasterLayer(MyDataPackage *pDataPackage) {
+	
+}
+
 void CGISTinView::DrawDelaunay(CDC *pDC, vector<DCEL*> &dcelCollection, COLORREF color, int nWidth)
 {
 	if (dcelCollection.size() != 0)
@@ -1064,8 +1134,9 @@ void CGISTinView::DrawPolygonFromPointGroups(CDC * pDC, vector<pair<vector<PNT>,
 	
 	
 	for (int i = 0; i < vecPointGroups.size(); i++) {
+		continue;
 		vector<PNT> &group = vecPointGroups[i].first;
-		if (vecPointGroups[i].second != 2.0) {
+		if (vecPointGroups[i].second != 3.0) {
 			continue;
 		}
 		CBrush Brush;
@@ -1764,6 +1835,9 @@ void CGISTinView::OnShapefileOpen()
 	ReadShapefile(TheFileName, "Id");
 	vector<PNT> PNTSet = SplitLongSegments(m_vecInputSHPGroups);
 	ElimiateDuplicatePoints(PNTSet);
+	ElimiateDuplicatePoints(PNTSet);
+
+	//random_shuffle(PNTSet.begin(), PNTSet.end());
 	//CalPointDistance(PNTSet); //去重
 	//CalPointDistance(PNTSet);
 	pointNumber = PNTSet.size();
@@ -1796,7 +1870,8 @@ void CGISTinView::OnSavePoint()
 	else
 		return;
 
-	SaveShapeFile(TheFileName, PointData, pointNumber);
+	SavePointsToTextFile(TheFileName, PointData, pointNumber);
+	//SaveShapeFile(TheFileName, PointData, pointNumber);
 }
 
 
