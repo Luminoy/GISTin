@@ -131,30 +131,51 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 	else
 	{
 		OGRLayer *poLayer = poDS->GetLayer(0);
-		OGRFeature *poFeat = NULL;
+		OGRFeature *poFeat =NULL;
 		int idx = 0;
 		int pnt_count = 0;
 		while ((poFeat = poLayer->GetNextFeature()) != NULL) {
+			
 			OGRGeometry *poGeometry = poFeat->GetGeometryRef();
 			if (poGeometry != NULL) {
 				if (wkbFlatten(poGeometry->getGeometryType()) == wkbPoint) {
 					OGRPoint *poPoint = (OGRPoint *)poGeometry;
 					pnt_count = 1;
-					vector<PNT> group(pnt_count);
+					vector<PNT> group;
 
 					OGRFeature *pFeat = (OGRFeature *)poPoint;
 					double attr = 1;
 					if (fieldName) {
-						attr = pFeat->GetFieldAsDouble(fieldName);
+						OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
+						int iField = poFDefn->GetFieldIndex(fieldName);
+						if (iField != -1) {
+							attr = pFeat->GetFieldAsDouble(fieldName);
+						}
+						else
+						{
+							//AfxMessageBox("不存在 'Id' 字段!");
+						}
 					}
 
-					PNT POINT;
-					POINT.x = poPoint->getX();
-					POINT.y = poPoint->getY();
+					while (poFeat != NULL) {
+						
+						PNT POINT;
+						POINT.x = poPoint->getX();
+						POINT.y = poPoint->getY();
 
-					//PNTSet.push_back(POINT);
-					group.push_back(POINT);
-
+						//PNTSet.push_back(POINT);
+						group.push_back(POINT);
+						try
+						{
+							poFeat = poLayer->GetNextFeature();
+							poGeometry = poFeat->GetGeometryRef();
+							poPoint = (OGRPoint *)poGeometry;
+						}
+						catch (exception ex) {
+							poFeat = NULL;
+						}
+						
+					}
 					m_vecInputSHPGroups.push_back(make_pair(group, attr));
 
 					//char str[100];
@@ -357,7 +378,7 @@ bool unique_cmp(const PNT &P1, const PNT &P2) {
 }
 
 bool unique_shedhold(const PNT &P1, const PNT &P2) {
-	return ((abs(P1.x - P2.x) <= 0.3) || (abs(P1.y - P2.y) <= 0.3));
+	return ((abs(P1.x - P2.x) <= 0.01) && (abs(P1.y - P2.y) <= 0.01));
 }
 
 void CGISTinView::ElimiateDuplicatePoints(vector<PNT> &PNTSet) {
@@ -1841,12 +1862,24 @@ void CGISTinView::OnShapefileOpen()
 	//CalPointDistance(PNTSet); //去重
 	//CalPointDistance(PNTSet);
 	pointNumber = PNTSet.size();
-	Point = new MyPoint[pointNumber + 4];
+
+	double xmin = PNTSet[0].x;
+	double ymin = PNTSet[0].y;
+	for (int i = 1; i < pointNumber; i++) {
+		if (xmin > PNTSet[i].x) {
+			xmin = PNTSet[i].x;
+		}
+		if (ymin > PNTSet[i].y) {
+			ymin = PNTSet[i].y;
+		}
+	}
+
+	Point = new MyPoint[pointNumber];
 	for (int i = 0; i<pointNumber; i++)
 	{
-		Point[i].x = PNTSet[i].x;
-		Point[i].y = PNTSet[i].y;
-		Point[i].ID = i;
+		Point[i].x = PNTSet[i].x - xmin;
+		Point[i].y = PNTSet[i].y - ymin;
+		Point[i].ID = i + 1;
 	}
 
 	CString cstr;
@@ -1870,8 +1903,8 @@ void CGISTinView::OnSavePoint()
 	else
 		return;
 
-	SavePointsToTextFile(TheFileName, PointData, pointNumber);
-	//SaveShapeFile(TheFileName, PointData, pointNumber);
+	//SavePointsToTextFile(TheFileName, PointData, pointNumber);
+	SaveShapeFile(TheFileName, PointData, pointNumber);
 }
 
 
