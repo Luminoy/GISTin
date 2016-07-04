@@ -122,224 +122,171 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 	OGRRegisterAll();
 	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
 	OGRSFDriver* poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
-	OGRDataSource *poDS = poDriver->Open(fileName);
+	OGRDataSource *poDataSource = poDriver->Open(fileName);
 	vector<PNT> PNTSet;
-	if (poDS == NULL)
+	if (!poDataSource)
 	{
-		MessageBoxA("open failed!\n", "Error", 0);
+		MessageBoxA("文件打开失败！\n", "错误！", 0);
+		return;
 	}
-	else
-	{
-		OGRLayer *poLayer = poDS->GetLayer(0);
-		OGRFeature *poFeat =NULL;
-		int idx = 0;
-		int pnt_count = 0;
-		while ((poFeat = poLayer->GetNextFeature()) != NULL) {
-			
-			OGRGeometry *poGeometry = poFeat->GetGeometryRef();
-			if (poGeometry != NULL) {
-				if (wkbFlatten(poGeometry->getGeometryType()) == wkbPoint) {
-					OGRPoint *poPoint = (OGRPoint *)poGeometry;
-					pnt_count = 1;
-					vector<PNT> group;
+	OGRLayer *poLayer = poDataSource->GetLayer(0);
+	OGRFeature *poFeat = NULL;
+	int idx = 0;
+	int pnt_count = 0;
+	while ((poFeat = poLayer->GetNextFeature()) != NULL) {
+		OGRGeometry *poGeometry = poFeat->GetGeometryRef();
+		OGRwkbGeometryType poType;
+		if (poGeometry != NULL) {
+			poType = poGeometry->getGeometryType();
+		}
+		OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
 
-					OGRFeature *pFeat = (OGRFeature *)poPoint;
-					double attr = 1;
-					if (fieldName) {
-						OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
-						int iField = poFDefn->GetFieldIndex(fieldName);
-						if (iField != -1) {
-							attr = pFeat->GetFieldAsDouble(fieldName);
-						}
-						else
-						{
-							//AfxMessageBox("不存在 'Id' 字段!");
-						}
-					}
+		double attr = 1;
+		if (fieldName && (poFDefn->GetFieldIndex(fieldName) != -1)) {
+			attr = poFeat->GetFieldAsDouble(fieldName);
+		}
 
-					while (poFeat != NULL) {
-						
-						PNT POINT;
-						POINT.x = poPoint->getX();
-						POINT.y = poPoint->getY();
+		switch (poType)
+		{
+		case wkbPoint:
+		{
+			OGRPoint *poPoint = (OGRPoint *)poGeometry;
+			pnt_count = 1;
 
-						//PNTSet.push_back(POINT);
-						group.push_back(POINT);
-						try
-						{
-							poFeat = poLayer->GetNextFeature();
-							poGeometry = poFeat->GetGeometryRef();
-							poPoint = (OGRPoint *)poGeometry;
-						}
-						catch (exception ex) {
-							poFeat = NULL;
-						}
-						
-					}
-					m_vecInputSHPGroups.push_back(make_pair(group, attr));
+			vector<PNT> group;
+			for (int i = 0; i < pnt_count; i++) {
+
+				PNT POINT;
+				POINT.x = poPoint->getX();
+				POINT.y = poPoint->getY();
+
+				group.push_back(POINT);
+			}
+
+			m_vecInputSHPGroups.push_back(make_pair(group, attr));
+		}
+		break;
+		case wkbLineString:
+		{
+			OGRLineString *poLine = (OGRLineString *)poGeometry;
+			pnt_count = poLine->getNumPoints();
+			vector<PNT> group(pnt_count);
+
+			for (int i = 0; i < pnt_count; i++) {
+				OGRPoint *poPoint = new OGRPoint();
+				poLine->getPoint(i, poPoint);
+
+				PNT POINT;
+				POINT.x = poPoint->getX();
+				POINT.y = poPoint->getY();
+
+				group.push_back(POINT);
+			}
+			m_vecInputSHPGroups.push_back(make_pair(group, attr));
+		}
+		break;
+		case wkbPolygon:
+		{
+			OGRPolygon *poPolygon = (OGRPolygon *)poGeometry;
+			OGRLinearRing* poRing = poPolygon->getExteriorRing();
+
+			pnt_count = poRing->getNumPoints();
+			OGRPoint *poPoint = new OGRPoint();
+			vector<PNT> group;
+
+			for (int i = 0; i < pnt_count; i++) {
+				poRing->getPoint(i, poPoint);
+
+				PNT POINT;
+				POINT.x = poPoint->getX();
+				POINT.y = poPoint->getY();
+
+				//PNTSet.push_back(POINT);
+				group.push_back(POINT);
+
+				//char str[100];
+				//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
+				//MessageBoxA(NULL, str, "coordinate", 0);
+			}
+			m_vecInputSHPGroups.push_back(make_pair(group, attr));
+
+
+			int InnerRingNum = poPolygon->getNumInteriorRings();
+			for (int k = 0; k < InnerRingNum; k++) {
+				poRing = poPolygon->getInteriorRing(k);
+				pnt_count = poRing->getNumPoints();
+
+				OGRPoint *poPoint = new OGRPoint();
+				vector<PNT> group;
+
+				if (fieldName) {
+					int iField = poFDefn->GetFieldIndex(fieldName);
+					OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
+					if (poFieldDefn->GetType() == OFTInteger)
+						attr = poFeat->GetFieldAsInteger(iField);
+					else if (poFieldDefn->GetType() == OFTReal)
+						attr = poFeat->GetFieldAsDouble(iField);
+					else
+						attr = 1;
+				}
+
+				for (int i = 0; i < pnt_count; i++) {
+					poRing->getPoint(i, poPoint);
+
+					PNT POINT;
+					POINT.x = poPoint->getX();
+					POINT.y = poPoint->getY();
+
+					//PNTSet.push_back(POINT);
+					group.push_back(POINT);
 
 					//char str[100];
 					//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
 					//MessageBoxA(NULL, str, "coordinate", 0);
 				}
-				else if (wkbFlatten(poGeometry->getGeometryType()) == wkbLineString)
-				{
-					OGRLineString *poLine = (OGRLineString *)poGeometry;
-					pnt_count = poLine->getNumPoints();
-					vector<PNT> group(pnt_count);
-					OGRFeature *pFeat = (OGRFeature *)poLine;
-					double attr = 1;
-					if (fieldName) {
-						attr = pFeat->GetFieldAsDouble(fieldName);
-					}
-
-					for (int i = 0; i < pnt_count; i++) {
-						OGRPoint *poPoint = new OGRPoint();
-						poLine->getPoint(i, poPoint);
-
-						PNT POINT;
-						POINT.x = poPoint->getX();
-						POINT.y = poPoint->getY();
-
-						//PNTSet.push_back(POINT);
-						group.push_back(POINT);
-
-						//char str[100];
-						//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
-						//MessageBoxA(NULL, str, "coordinate", 0);
-					}
-					m_vecInputSHPGroups.push_back(make_pair(group, attr));
-
-				}
-				else if (wkbFlatten(poGeometry->getGeometryType()) == wkbPolygon) {
-					OGRPolygon *poPolygon = (OGRPolygon *)poGeometry;
-					OGRLinearRing* poRing = poPolygon->getExteriorRing();
-
-					pnt_count = poRing->getNumPoints();
-					OGRPoint *poPoint = new OGRPoint();
-					vector<PNT> group;
-
-					OGRFeature *pFeat = (OGRFeature *)poPolygon;
-					OGRFeature *poFeature = poFeat;
-					OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
-
-					double attr = 1;
-					if (fieldName) {
-						OGRFeatureDefn *poFeatDefn = pFeat->GetDefnRef();
-						int iField = poFDefn->GetFieldIndex(fieldName);
-						OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
-						if (poFieldDefn->GetType() == OFTInteger)
-							attr = poFeature->GetFieldAsInteger(iField);
-						else if (poFieldDefn->GetType() == OFTReal)
-							attr = poFeature->GetFieldAsDouble(iField);
-					}
-
-					for (int i = 0; i < pnt_count; i++) {
-						poRing->getPoint(i, poPoint);
-
-						PNT POINT;
-						POINT.x = poPoint->getX();
-						POINT.y = poPoint->getY();
-
-						//PNTSet.push_back(POINT);
-						group.push_back(POINT);
-
-						//char str[100];
-						//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
-						//MessageBoxA(NULL, str, "coordinate", 0);
-					}
-					m_vecInputSHPGroups.push_back(make_pair(group,attr));
-
-					int nRings = poPolygon->getNumInteriorRings();
-					for (int k = 0; k < nRings; k++) {
-						poRing = poPolygon->getInteriorRing(k);
-						pnt_count = poRing->getNumPoints();
-
-						OGRPoint *poPoint = new OGRPoint();
-						vector<PNT> group;
-
-						OGRFeature *pFeat = (OGRFeature *)poPolygon;
-						OGRFeature *poFeature = poFeat;
-						OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
-
-						double attr = 1;
-						if (fieldName) {
-							OGRFeatureDefn *poFeatDefn = pFeat->GetDefnRef();
-							int iField = poFDefn->GetFieldIndex(fieldName);
-							OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
-							if (poFieldDefn->GetType() == OFTInteger)
-								attr = poFeature->GetFieldAsInteger(iField);
-							else if (poFieldDefn->GetType() == OFTReal)
-								attr = poFeature->GetFieldAsDouble(iField);
-						}
-
-						for (int i = 0; i < pnt_count; i++) {
-							poRing->getPoint(i, poPoint);
-
-							PNT POINT;
-							POINT.x = poPoint->getX();
-							POINT.y = poPoint->getY();
-
-							//PNTSet.push_back(POINT);
-							group.push_back(POINT);
-
-							//char str[100];
-							//sprintf_s(str, "%d : (%f, %f)\n", idx, poPoint->getX(), poPoint->getY());
-							//MessageBoxA(NULL, str, "coordinate", 0);
-						}
-						m_vecInputSHPGroups.push_back(make_pair(group, attr));
-					}
-					
-				}
-				else if (poGeometry->getGeometryType() == wkbMultiPolygon25D) {  //加了wkbFlatten居然会导致判断为不等于！！！
-					OGRMultiPolygon *poMultiPolygon = (OGRMultiPolygon *)poGeometry;
-
-					for (int k = 0; k < poMultiPolygon->getNumGeometries(); k++) {
-						OGRPolygon *poPolygon = (OGRPolygon *)poMultiPolygon->getGeometryRef(k);
-						OGRLinearRing *poRing = (OGRLinearRing *)poPolygon->getExteriorRing();
-						pnt_count = poRing->getNumPoints();
-
-						OGRFeature *pFeat = (OGRFeature *)poPolygon;
-						OGRFeature *poFeature = pFeat;
-						OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
-						double attr = 1;
-						if (fieldName) {
-							OGRFeatureDefn *poFeatDefn = pFeat->GetDefnRef();
-							int iField = poFDefn->GetFieldIndex(fieldName);
-							OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
-							if (poFieldDefn->GetType() == OFTInteger)
-								attr = poFeature->GetFieldAsInteger(iField);
-							else if (poFieldDefn->GetType() == OFTReal)
-								attr = poFeature->GetFieldAsDouble(iField);
-						}
-
-						OGRPoint *poPoint = new OGRPoint();
-						vector<PNT> group;
-						for (int i = 0; i < pnt_count; i++) {
-							poRing->getPoint(i, poPoint);
-
-							PNT POINT;
-							POINT.x = poPoint->getX();
-							POINT.y = poPoint->getY();
-
-							//PNTSet.push_back(POINT);
-							group.push_back(POINT);
-						}
-						m_vecInputSHPGroups.push_back(make_pair(group,attr));
-					}
-				}
-				else
-				{
-					printf("%d : no geometry !\n", idx);
-				}
-				OGRFeature::DestroyFeature(poFeat);
-				idx++;
+				m_vecInputSHPGroups.push_back(make_pair(group, attr));
 			}
 		}
+		break;
+		case wkbMultiPolygon25D:
+		{
+			OGRMultiPolygon *poMultiPolygon = (OGRMultiPolygon *)poGeometry;
 
-		OGRDataSource::DestroyDataSource(poDS);
-		OGRCleanupAll();
+			for (int k = 0; k < poMultiPolygon->getNumGeometries(); k++) {
+				OGRPolygon *poPolygon = (OGRPolygon *)poMultiPolygon->getGeometryRef(k);
+				OGRLinearRing *poRing = (OGRLinearRing *)poPolygon->getExteriorRing();
+				pnt_count = poRing->getNumPoints();
+				
+
+				attr = 1;
+				if (fieldName && (poFDefn->GetFieldIndex(fieldName) != -1)) {
+					attr = ((OGRFeature *)poPolygon)->GetFieldAsDouble(fieldName);
+				}
+
+				OGRPoint *poPoint = new OGRPoint();
+				vector<PNT> group;
+				for (int i = 0; i < pnt_count; i++) {
+					poRing->getPoint(i, poPoint);
+
+					PNT POINT;
+					POINT.x = poPoint->getX();
+					POINT.y = poPoint->getY();
+
+					//PNTSet.push_back(POINT);
+					group.push_back(POINT);
+				}
+				m_vecInputSHPGroups.push_back(make_pair(group, attr));
+			}
+		}
+		break;
+		default:
+			break;
+		}
+		OGRFeature::DestroyFeature(poFeat);
 	}
+
+	OGRDataSource::DestroyDataSource(poDataSource);
+	OGRCleanupAll();
 }
 
 vector<PNT> CGISTinView::SplitLongSegments(vector<pair<vector<PNT>, double> >& m_vecInputSHPGroups)
@@ -419,7 +366,7 @@ void CGISTinView::SavePointsToTextFile(const char *filename, MyPoint* pData, int
 	}
 	fprintf_s(fp, "%d\r\n", count);
 	for (int i = 1; i <= count; i++) {
-		fprintf_s(fp, "%d %.3lf %.3lf\r\n", i, pData[i - 1].x - xmin, pData[i - 1].y - ymin);
+		fprintf_s(fp, "%d %lf %lf\r\n", i, pData[i - 1].x - xmin, pData[i - 1].y - ymin);
 	}
 	fclose(fp);
 }
@@ -810,13 +757,13 @@ void CGISTinView::LoadFile(int Type)
 	{
 	  	
        clock_t start=clock();
-	   
+
     
 	   fscanf(fp,"%d",&pointNumber);
        Point=new PointSet[pointNumber];
-       for(int i=0;i<pointNumber;i++)
+	   for (int i = 0; i < pointNumber; i++)
 	   {
-		   fscanf(fp,"%d%lf%lf",&Point[i].ID,&Point[i].x,&Point[i].y);
+		   fscanf(fp, "%d%lf%lf", &Point[i].ID, &Point[i].x, &Point[i].y);
 	   }
 	   clock_t stop = clock();
 	   double dInterval = (double) (stop - start);
@@ -1858,7 +1805,7 @@ void CGISTinView::OnShapefileOpen()
 	ElimiateDuplicatePoints(PNTSet);
 	ElimiateDuplicatePoints(PNTSet);
 
-	//random_shuffle(PNTSet.begin(), PNTSet.end());
+	random_shuffle(PNTSet.begin(), PNTSet.end());
 	//CalPointDistance(PNTSet); //去重
 	//CalPointDistance(PNTSet);
 	pointNumber = PNTSet.size();
@@ -1874,11 +1821,12 @@ void CGISTinView::OnShapefileOpen()
 		}
 	}
 
-	Point = new MyPoint[pointNumber];
+	Point = new PointSet[pointNumber];
 	for (int i = 0; i<pointNumber; i++)
 	{
-		Point[i].x = PNTSet[i].x - xmin;
-		Point[i].y = PNTSet[i].y - ymin;
+		/// 只保留三位小数才不会出错！！后人谨记！！
+		Point[i].x = ((int)((PNTSet[i].x - xmin)*1000))/1000;
+		Point[i].y = ((int)((PNTSet[i].y - ymin)*1000))/1000;
 		Point[i].ID = i + 1;
 	}
 
@@ -1896,15 +1844,15 @@ void CGISTinView::OnShapefileOpen()
 void CGISTinView::OnSavePoint()
 {
 	CString  TheFileName;
-	CFileDialog  FileDlg(TRUE, NULL, "dendify.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|", AfxGetMainWnd());
+	CFileDialog  FileDlg(TRUE, NULL, "dendify", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
 	else
 		return;
 
-	//SavePointsToTextFile(TheFileName, PointData, pointNumber);
-	SaveShapeFile(TheFileName, PointData, pointNumber);
+	SavePointsToTextFile(TheFileName, PointData, pointNumber);
+	//SaveShapeFile(TheFileName, PointData, pointNumber);
 }
 
 
