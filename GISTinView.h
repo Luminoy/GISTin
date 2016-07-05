@@ -119,6 +119,7 @@ private:
    vector<pair<vector<PNT>, double> > m_vecInputSHPGroups;
    MyDataPackage *pDataPackage;
 
+   double bias_x, bias_y;
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -130,7 +131,7 @@ public:
    void CalcBoundArc();
    void CalcBoundGraph();
    void DrawGraph(CDC*pDC);
-   void DrawRasterLayer(MyDataPackage * pDataPackage);
+   void DrawRasterLayer(CDC* pDC, MyDataPackage * pDataPackage);
    void DrawPoint(CDC* pDC);
    void DrawPolygonFromPointGroups(CDC* pDC, vector<pair<vector<PNT>, double> >& pPointGroups);
    void DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count);

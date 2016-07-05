@@ -482,6 +482,12 @@ CGISTinView::CGISTinView()
 	nPathPointNum = 0;
 	nStartPointID = nEndPointID = -1;
 	pDataPackage = NULL;
+
+	bias_x = bias_y = 0;
+	for (int i = 0; i <= 13; i++) {
+		MyPen[i].CreatePen(PS_SOLID, 1, colors[i]);
+		MyBrush[i].CreateSolidBrush(colors[i]);
+	}
 }
 
 CGISTinView::~CGISTinView()
@@ -873,6 +879,10 @@ void CGISTinView::DrawGraph(CDC*pDC)
 	DrawPoint(pDC);
     DrawArc(pDC);	
 
+	//if (pDataPackage) {
+	//	DrawRasterLayer(pDC, pDataPackage);
+	//}
+
 	if (!m_vecInputSHPGroups.empty()) {
 		DrawPolygonFromPointGroups(pDC, m_vecInputSHPGroups);
 	}
@@ -900,9 +910,59 @@ void CGISTinView::DrawGraph(CDC*pDC)
 	}
 
 	
+	
 }
 
-void CGISTinView::DrawRasterLayer(MyDataPackage *pDataPackage) {
+void CGISTinView::DrawRasterLayer(CDC* pDC, MyDataPackage *pDataPackage) {
+	if (!pDataPackage) {
+		return;
+	}
+
+	double pixel_width = pDataPackage->fPixelWidth;
+	double pixel_height = pDataPackage->fPixelHeight;
+	int nHeight = pDataPackage->nHeight;
+	int nWidth = pDataPackage->nWidth;
+	double fLeftBound = pDataPackage->fLeftBound;
+	double fUpperBound = pDataPackage->fUpperBound;
+
+	CPen *pOldPen = pDC->SelectObject(&MyPen[WHITE]);
+	CBrush *pOldBrush = pDC->SelectObject(&MyBrush[BLACK]);
+	switch (pDataPackage->nDataType)
+	{
+	case 1:
+	{
+		DT_8U* pData = (DT_8U *)pDataPackage->pData;
+		for (int i = 0; i < nHeight; i++) {
+			for (int j = 0; j < nWidth; j++) {
+				DT_8U value = pData[i * nWidth + j];
+				pDC->SelectObject(&MyBrush[(int)value]);
+				PNT pt1{ fUpperBound + i * pixel_height, fLeftBound + j * pixel_width};
+				PNT pt2{ fUpperBound + (i + 1) * pixel_height, fLeftBound + (j + 1) * pixel_width};
+				GetScreenPoint(&pt1);
+				GetScreenPoint(&pt2);
+				pDC->Rectangle(pt1.x, pt1.y, pt2.x, pt2.y);
+			}
+		}
+	}
+	break;
+	case 2:
+	{
+		DT_16U* pData = (DT_16U *)pDataPackage->pData;
+		for (int i = 0; i < nHeight; i++) {
+			for (int j = 0; j < nWidth; j++) {
+				DT_16U value = pData[i * nWidth + j];
+				pDC->SelectObject(&MyBrush[(int)value]);
+				PNT pt1{ fUpperBound + i * pixel_height, fLeftBound + j * pixel_width };
+				PNT pt2{ fUpperBound + (i + 1) * pixel_height, fLeftBound + (j + 1) * pixel_width };
+				GetScreenPoint(&pt1);
+				GetScreenPoint(&pt2);
+				pDC->Rectangle(pt1.x, pt1.y, pt2.x, pt2.y);
+			}
+		}
+	}
+	default:
+		break;
+	}
 	
 }
 
@@ -941,17 +1001,20 @@ void CGISTinView::DrawDelaunay(CDC *pDC, DCEL **pEdge, long nCount, COLORREF col
 		PNT P1 = {pdecl->e[0].oData->x, pdecl->e[0].oData->y};
 		PNT P2 = {pdecl->e[1].oData->x, pdecl->e[1].oData->y};
 		GetScreenPoint(&P1); GetScreenPoint(&P2); 
-		if (pdecl->resistance) {
-			pDC->SelectObject(&GrayPen);
-			pDC->MoveTo(P1.x, P1.y);
-			pDC->LineTo(P2.x, P2.y);
-			pDC->SelectObject(&BluePen);
-		}
-		else
-		{
-			pDC->MoveTo(P1.x, P1.y);
-			pDC->LineTo(P2.x, P2.y);
-		}
+		pDC->SelectObject(&MyPen[(int)pdecl->resistance]);
+		pDC->MoveTo(P1.x, P1.y);
+		pDC->LineTo(P2.x, P2.y);
+		//if (pdecl->resistance) {
+		//	pDC->SelectObject(&GrayPen);
+		//	pDC->MoveTo(P1.x, P1.y);
+		//	pDC->LineTo(P2.x, P2.y);
+		//	pDC->SelectObject(&BluePen);
+		//}
+		//else
+		//{
+		//	pDC->MoveTo(P1.x, P1.y);
+		//	pDC->LineTo(P2.x, P2.y);
+		//}
 		 
 	}
     pDC->SelectObject(OldPen);
@@ -1801,23 +1864,26 @@ void CGISTinView::OnShapefileOpen()
 
 	//char *filename = CString2LPSTR(TheFileName);
 	ReadShapefile(TheFileName, "Id");
+	// 分割长线段
 	vector<PNT> PNTSet = SplitLongSegments(m_vecInputSHPGroups);
+	// 去重处理！
 	ElimiateDuplicatePoints(PNTSet);
 	ElimiateDuplicatePoints(PNTSet);
 
+	// 打乱内部顺序
 	random_shuffle(PNTSet.begin(), PNTSet.end());
 	//CalPointDistance(PNTSet); //去重
 	//CalPointDistance(PNTSet);
 	pointNumber = PNTSet.size();
 
-	double xmin = PNTSet[0].x;
-	double ymin = PNTSet[0].y;
+	bias_x = PNTSet[0].x;
+	bias_y = PNTSet[0].y;
 	for (int i = 1; i < pointNumber; i++) {
-		if (xmin > PNTSet[i].x) {
-			xmin = PNTSet[i].x;
+		if (bias_x > PNTSet[i].x) {
+			bias_x = PNTSet[i].x;
 		}
-		if (ymin > PNTSet[i].y) {
-			ymin = PNTSet[i].y;
+		if (bias_y > PNTSet[i].y) {
+			bias_y = PNTSet[i].y;
 		}
 	}
 
@@ -1825,8 +1891,8 @@ void CGISTinView::OnShapefileOpen()
 	for (int i = 0; i<pointNumber; i++)
 	{
 		/// 只保留三位小数才不会出错！！后人谨记！！
-		Point[i].x = ((int)((PNTSet[i].x - xmin)*1000))/1000;
-		Point[i].y = ((int)((PNTSet[i].y - ymin)*1000))/1000;
+		Point[i].x = long((PNTSet[i].x - bias_x) * 1000) / 1000.0;
+		Point[i].y = long((PNTSet[i].y - bias_y) * 1000) / 1000.0;
 		Point[i].ID = i + 1;
 	}
 
@@ -1844,15 +1910,15 @@ void CGISTinView::OnShapefileOpen()
 void CGISTinView::OnSavePoint()
 {
 	CString  TheFileName;
-	CFileDialog  FileDlg(TRUE, NULL, "dendify", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	CFileDialog  FileDlg(TRUE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
 	else
 		return;
 
-	SavePointsToTextFile(TheFileName, PointData, pointNumber);
-	//SaveShapeFile(TheFileName, PointData, pointNumber);
+	//SavePointsToTextFile(TheFileName, PointData, pointNumber);
+	SaveShapeFile(TheFileName, PointData, pointNumber);
 }
 
 
@@ -1981,15 +2047,15 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 		//vector<int> resist;
 		//resist.resize(2 * delta + 1);
 		int *resist = new int[(2 * delta + 1) * (2 * delta + 1)];
-		int mr = ((pEdges[i]->e[0].oData->y + pEdges[i]->e[1].oData->y) / 2 - UpperBound) / PixelHeight;
-		int mc = ((pEdges[i]->e[0].oData->x + pEdges[i]->e[1].oData->x) / 2 - LeftBound) / PixelWidth;
+		int mr = ((pEdges[i]->e[0].oData->y + pEdges[i]->e[1].oData->y) / 2 + bias_y - UpperBound) / PixelHeight;
+		int mc = ((pEdges[i]->e[0].oData->x + pEdges[i]->e[1].oData->x) / 2 + bias_x - LeftBound) / PixelWidth;
 		
 		for (int k = -delta; k <= delta; k++) {
 			for (int m = -delta; m <= delta; m++) {
-				if (mr + k < 0 || mr + k > nHeight - 1 || mc + m < 0 || mc + m > nWidth - 1)
-					resist[(k + delta) * (2 * delta + 1) + m + delta] = 1;
+				if ((mr + k < 0) || (mr + k > nHeight - 1) || (mc + m < 0) || (mc + m > nWidth - 1))
+					resist[(k + delta) * (2 * delta + 1) + m + delta] = 10;
 				else
-					resist[(k + delta) * (2 * delta + 1) + m + delta] = (pData[(mr + k) * nWidth + (mc + m)] != NoDataValue) ? 1 : 0;
+					resist[(k + delta) * (2 * delta + 1) + m + delta] = pData[(mr + k) * nWidth + (mc + m)];
 			}
 		}
 
@@ -1998,7 +2064,8 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 		for (int i = 0; i < (2 * delta + 1) * (2 * delta + 1); i++) {
 			stat[resist[i]]++;
 		}
-		if (stat.size() == 1) {
+		int sss = stat.size();
+		if (sss == 1) {
 			resistance = stat.begin()->first;
 		}
 		else if(stat.size() > 1)
@@ -2011,6 +2078,7 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 			}
 		}
 		
+		delete[]resist;
 		//int count_0 = count_if(resist.begin(), resist.end(), [=]->(int a) { return a == 0; });
 		//int resist_0 = 0, resist_1 = 0;
 		//for (int i = 0; i < (2 * delta + 1)*(2 * delta + 1); i++) {
