@@ -25,6 +25,7 @@
 #define   ThreadPoolSIZE    8
 #define   BlockGridSize     100 
 #define   BlockGridOffset   0.1
+#define   MAX_COLOR_NUM     32
 //------------------
 
 
@@ -118,8 +119,9 @@ private:
    unordered_map<Point2d, int, hash_func, hash_cmp> mHashTable;
    vector<pair<vector<PNT>, double> > m_vecInputSHPGroups;
    MyDataPackage *pDataPackage;
-
    double bias_x, bias_y;
+
+   bool m_DisplayResultPath;
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -196,9 +198,9 @@ public:
 private:   
 
 public: 
-	COLORREF colors[32];
-	CBrush   MyBrush[32];
-	CPen     MyPen[32];
+	COLORREF colors[MAX_COLOR_NUM];
+	CBrush   MyBrush[MAX_COLOR_NUM];
+	CPen     MyPen[MAX_COLOR_NUM];
 	//定义辅助格网
     Raster_Infor rasterobject;
     double m_dReadFileTime;	
@@ -290,6 +292,7 @@ public:
 	void OnPointDensify();
 	afx_msg void OnSavePoint();
 	afx_msg void OnSaveLine();
+	afx_msg void OnDisplayPath();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

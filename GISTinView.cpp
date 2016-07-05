@@ -60,6 +60,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_POINT_DENSIFY, &CGISTinView::OnPointDensify)
 	ON_COMMAND(ID_SAVE_POINT, &CGISTinView::OnSavePoint)
 	ON_COMMAND(ID_SAVE_LINE, &CGISTinView::OnSaveLine)
+	ON_COMMAND(ID_DISPLAY_PATH, &CGISTinView::OnDisplayPath)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -488,6 +489,14 @@ CGISTinView::CGISTinView()
 		MyPen[i].CreatePen(PS_SOLID, 1, colors[i]);
 		MyBrush[i].CreateSolidBrush(colors[i]);
 	}
+
+	for (int i = 14; i < MAX_COLOR_NUM; i++) {
+		colors[i] = RGB(rand() % 255, (rand() + i) % 255, (rand() + 2 * i) % 255);
+		MyPen[i].CreatePen(PS_SOLID, 1, colors[i]);
+		MyBrush[i].CreateSolidBrush(colors[i]);
+	}
+
+	m_DisplayResultPath = false;
 }
 
 CGISTinView::~CGISTinView()
@@ -904,7 +913,7 @@ void CGISTinView::DrawGraph(CDC*pDC)
 	{
 		DrawBinaryLeaf(pDC, rasterobject, TreeLeaf);
 	}
-	if (pPathPoints) 
+	if (m_DisplayResultPath) 
 	{
 		DrawResultPath(pDC, pPathPoints, nPathPointNum);
 	}
@@ -1001,7 +1010,7 @@ void CGISTinView::DrawDelaunay(CDC *pDC, DCEL **pEdge, long nCount, COLORREF col
 		PNT P1 = {pdecl->e[0].oData->x, pdecl->e[0].oData->y};
 		PNT P2 = {pdecl->e[1].oData->x, pdecl->e[1].oData->y};
 		GetScreenPoint(&P1); GetScreenPoint(&P2); 
-		pDC->SelectObject(&MyPen[(int)pdecl->resistance]);
+		pDC->SelectObject(&MyPen[(int)pdecl->resistance % MAX_COLOR_NUM]);
 		pDC->MoveTo(P1.x, P1.y);
 		pDC->LineTo(P2.x, P2.y);
 		//if (pdecl->resistance) {
@@ -1202,7 +1211,7 @@ void CGISTinView::DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count) {
 		return;
 	}
 	CPen Pen;
-	Pen.CreatePen(PS_SOLID, 2, colors[RED]);
+	Pen.CreatePen(PS_SOLID, 2, colors[BLACK]);
 	CPen *pOldPen = pDC->SelectObject(&Pen);
 	PNT P1, P2;
 	P1.x = pPathPoints[0].x;
@@ -2189,7 +2198,7 @@ void CGISTinView::CreateLinePath() {
 		for (int i = 0; i < CurrPoint.nLineCount; i++) {
 			long LID = CurrPoint.pConnectLineIDs[i];
 			DCEL *pLine = m_pDelaunayEdge[LID];
-			if (pLine != NULL && !pLine->resistance) {
+			if (pLine != NULL && pLine->resistance != -1) {
 				Point2d P0(pLine->e[0].oData->x, pLine->e[0].oData->y);
 				Point2d P1(pLine->e[1].oData->x, pLine->e[1].oData->y);
 				int idx1 = mHashTable[P0];
@@ -3089,3 +3098,17 @@ void CGISTinView::OnPointDensify()
 //}
 
 
+
+
+void CGISTinView::OnDisplayPath()
+{
+	if (m_DisplayResultPath == true)
+	{
+		m_DisplayResultPath = false;
+	}
+	else if (m_DisplayResultPath == false)
+	{
+		m_DisplayResultPath = true;
+	}
+	RefreshScreen();
+}

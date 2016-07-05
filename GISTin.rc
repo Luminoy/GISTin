@@ -125,6 +125,7 @@ BEGIN
         MENUITEM "显示合并Delaunay",                ID_DISPLAY_MERGE_DELAUNAY
         MENUITEM "显示自适应分组",                     ID_DISPLAY_BINARY_TREE
         MENUITEM "显示辅助栅格场",                     ID_DISPLAY_GRID
+        MENUITEM "显示结果路径",                      ID_DISPLAY_PATH
     END
     POPUP "shapefile"
     BEGIN
