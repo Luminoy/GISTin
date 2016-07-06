@@ -82,27 +82,54 @@ MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	pData->GetGeoTransform(fGeoTranform);
 	GDALDataType type = pBand->GetRasterDataType();
 	double NodataValue = pBand->GetNoDataValue();
-	DT_8U *pReturnData = new DT_8U[nWidth*nHeight];
-	pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
 
-	// 设置1为可通行，0为不可通行
-	//for (int i = 0; i < nHeight; i++) {
-	//	for (int j = 0; j < nWidth; j++) {
-	//		if (pReturnData[i*nWidth + j] == (DT_8U)NodataValue) {
-	//			pReturnData[i*nWidth + j] = 1;
-	//		}
-	//		else
-	//		{
-	//			pReturnData[i*nWidth + j] = 0;
-	//		}
-	//	}
-	//}
+	MyDataPackage *pDataPackage = new MyDataPackage();
 	switch (type)
 	{
 	case GDT_Byte:
-
-		break;
+	{
+		DT_8U *pReturnData = new DT_8U[nWidth*nHeight];
+		pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
+		pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0], NodataValue);
+	}
+	break;
+	case GDT_UInt16:
+	{
+		DT_16U *pReturnData = new DT_16U[nWidth*nHeight];
+		pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
+		pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0], NodataValue);
+	}
+	break;
+	case GDT_Int16:
+	{
+		DT_16S *pReturnData = new DT_16S[nWidth*nHeight];
+		pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
+		pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0], NodataValue);
+	}
+	break;
+	case GDT_UInt32:
+	{
+		DT_32U *pReturnData = new DT_32U[nWidth*nHeight];
+		pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
+		pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0], NodataValue);
+	}
+	break;
+	case GDT_Int32:
+	{
+		DT_32S *pReturnData = new DT_32S[nWidth*nHeight];
+		pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
+		pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0], NodataValue);
+	}
+	break;
+	case GDT_Float32:
+	{
+		DT_32F *pReturnData = new DT_32F[nWidth*nHeight];
+		pBand->RasterIO(GF_Read, 0, 0, nWidth, nHeight, pReturnData, nWidth, nHeight, type, 0, 0);
+		pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0], NodataValue);
+	}
 	default:
+		AfxMessageBox(_T("不支持该数据类型！"));
+		return NULL;
 		break;
 	}
 	CString str;
@@ -114,8 +141,6 @@ MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	AfxMessageBox(str);
 	GDALClose(pData);
 
-	MyDataPackage *pDataPackage = new MyDataPackage();
-	pDataPackage->SetInfo(type, pReturnData, nWidth, nHeight, fGeoTranform[1], fGeoTranform[5], fGeoTranform[3], fGeoTranform[0], NodataValue);
 	return pDataPackage;
 }
 
@@ -408,21 +433,21 @@ void CGISTinView::SaveShapeFile(const char *filename, DCEL** pData, int count) {
 	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
 	OGRDataSource *poDS = poDriver->CreateDataSource(filename);
 	OGRLayer *poLayer = poDS->CreateLayer(filename, NULL, wkbLineString);
-	OGRFieldDefn ogrField("NO", OFTInteger);
+	OGRFieldDefn ogrField("resistance", OFTReal);
 	ogrField.SetWidth(10);
 	poLayer->CreateField(&ogrField);
 
 	for (int i = 0; i < count; ++i) {
 		OGRFeature *poFeature = OGRFeature::CreateFeature(poLayer->GetLayerDefn());
-		poFeature->SetField("NO", i);
+		poFeature->SetField("resistance", pData[i]->resistance);
 		OGRLineString pLine;
 		OGRPoint P0, P1;
 
-		P0.setX(pData[i]->e[0].oData->x);
-		P0.setY(pData[i]->e[0].oData->y);
+		P0.setX(pData[i]->e[0].oData->x + bias_x);
+		P0.setY(pData[i]->e[0].oData->y + bias_y);
 
-		P1.setX(pData[i]->e[1].oData->x);
-		P1.setY(pData[i]->e[1].oData->y);
+		P1.setX(pData[i]->e[1].oData->x + bias_x);
+		P1.setY(pData[i]->e[1].oData->y + bias_y);
 
 		pLine.setNumPoints(2);
 		pLine.setPoint(0, &P0);
@@ -452,20 +477,143 @@ CGISTinView::CGISTinView()
     //Arc= new ArcSet[_MAX_ARCNUM_aMap];
 	xmin=ymin=1.E+256; xmax=ymax=-1.E+256;
 	nFlagPoint=FALSE; nFlagArc=FALSE;
-	colors[0] = RGB(0, 0, 0);
-	colors[1] = RGB(255, 0, 0);
-	colors[2] = RGB(0, 255, 0);
-	colors[3] = RGB(0, 0, 255);
-	colors[4] = RGB(0, 255, 255);
-	colors[5] = RGB(255, 0, 255);
-	colors[6] = RGB(255, 255, 0);
-	colors[7] = RGB(255, 255, 255);
-	colors[8] = RGB(0, 127, 127);
-	colors[9] = RGB(127, 0, 127);
-	colors[10] = RGB(127, 127, 0);
-	colors[11] = RGB(10, 200, 100);
-	colors[12] = RGB(100, 200, 10);
-	colors[13] = RGB(100, 100, 100);
+	// 颜色表
+	colors[0] = RGB(255, 182, 193);
+	colors[1] = RGB(255, 192, 203);
+	colors[2] = RGB(220, 20, 60);
+	colors[3] = RGB(255, 240, 245);
+	colors[4] = RGB(219, 112, 147);
+	colors[5] = RGB(255, 105, 180);
+	colors[6] = RGB(255, 20, 147);
+	colors[7] = RGB(199, 21, 133);
+	colors[8] = RGB(218, 112, 214);
+	colors[9] = RGB(216, 191, 216);
+	colors[10] = RGB(221, 160, 221);
+	colors[11] = RGB(238, 130, 238);
+	colors[12] = RGB(255, 0, 255);
+	colors[13] = RGB(255, 0, 255);
+	colors[14] = RGB(139, 0, 139);
+	colors[15] = RGB(128, 0, 128);
+	colors[16] = RGB(186, 85, 211);
+	colors[17] = RGB(148, 0, 211);
+	colors[18] = RGB(153, 50, 204);
+	colors[19] = RGB(75, 0, 130);
+	colors[20] = RGB(138, 43, 226);
+	colors[21] = RGB(147, 112, 219);
+	colors[22] = RGB(123, 104, 238);
+	colors[23] = RGB(106, 90, 205);
+	colors[24] = RGB(72, 61, 139);
+	colors[25] = RGB(230, 230, 250);
+	colors[26] = RGB(248, 248, 255);
+	colors[27] = RGB(0, 0, 255);
+	colors[28] = RGB(0, 0, 205);
+	colors[29] = RGB(25, 25, 112);
+	colors[30] = RGB(0, 0, 139);
+	colors[31] = RGB(0, 0, 128);
+	colors[32] = RGB(65, 105, 225);
+	colors[33] = RGB(100, 149, 237);
+	colors[34] = RGB(176, 196, 222);
+	colors[35] = RGB(119, 136, 153);
+	colors[36] = RGB(112, 128, 144);
+	colors[37] = RGB(30, 144, 255);
+	colors[38] = RGB(240, 248, 255);
+	colors[39] = RGB(70, 130, 180);
+	colors[40] = RGB(135, 206, 250);
+	colors[41] = RGB(135, 206, 235);
+	colors[42] = RGB(0, 191, 255);
+	colors[43] = RGB(173, 216, 230);
+	colors[44] = RGB(176, 224, 230);
+	colors[45] = RGB(95, 158, 160);
+	colors[46] = RGB(240, 255, 255);
+	colors[47] = RGB(225, 255, 255);
+	colors[48] = RGB(175, 238, 238);
+	colors[49] = RGB(0, 255, 255);
+	colors[50] = RGB(0, 255, 255);
+	colors[51] = RGB(0, 206, 209);
+	colors[52] = RGB(47, 79, 79);
+	colors[53] = RGB(0, 139, 139);
+	colors[54] = RGB(0, 128, 128);
+	colors[55] = RGB(72, 209, 204);
+	colors[56] = RGB(32, 178, 170);
+	colors[57] = RGB(64, 224, 208);
+	colors[58] = RGB(127, 255, 170);
+	colors[59] = RGB(0, 250, 154);
+	colors[60] = RGB(245, 255, 250);
+	colors[61] = RGB(0, 255, 127);
+	colors[62] = RGB(60, 179, 113);
+	colors[63] = RGB(46, 139, 87);
+	colors[64] = RGB(240, 255, 240);
+	colors[65] = RGB(144, 238, 144);
+	colors[66] = RGB(152, 251, 152);
+	colors[67] = RGB(143, 188, 143);
+	colors[68] = RGB(50, 205, 50);
+	colors[69] = RGB(0, 255, 0);
+	colors[70] = RGB(34, 139, 34);
+	colors[71] = RGB(0, 128, 0);
+	colors[72] = RGB(0, 100, 0);
+	colors[73] = RGB(127, 255, 0);
+	colors[74] = RGB(124, 252, 0);
+	colors[75] = RGB(173, 255, 47);
+	colors[76] = RGB(85, 107, 47);
+	colors[77] = RGB(107, 142, 35);
+	colors[78] = RGB(250, 250, 210);
+	colors[79] = RGB(255, 255, 240);
+	colors[80] = RGB(255, 255, 224);
+	colors[81] = RGB(255, 255, 0);
+	colors[82] = RGB(128, 128, 0);
+	colors[83] = RGB(189, 183, 107);
+	colors[84] = RGB(255, 250, 205);
+	colors[85] = RGB(238, 232, 170);
+	colors[86] = RGB(240, 230, 140);
+	colors[87] = RGB(255, 215, 0);
+	colors[88] = RGB(255, 248, 220);
+	colors[89] = RGB(218, 165, 32);
+	colors[90] = RGB(255, 250, 240);
+	colors[91] = RGB(253, 245, 230);
+	colors[92] = RGB(245, 222, 179);
+	colors[93] = RGB(255, 228, 181);
+	colors[94] = RGB(255, 165, 0);
+	colors[95] = RGB(255, 239, 213);
+	colors[96] = RGB(255, 235, 205);
+	colors[97] = RGB(255, 222, 173);
+	colors[98] = RGB(250, 235, 215);
+	colors[99] = RGB(210, 180, 140);
+	colors[100] = RGB(222, 184, 135);
+	colors[101] = RGB(255, 228, 196);
+	colors[102] = RGB(255, 140, 0);
+	colors[103] = RGB(205, 133, 63);
+	colors[104] = RGB(250, 240, 230);
+	colors[105] = RGB(255, 218, 185);
+	colors[106] = RGB(244, 164, 96);
+	colors[107] = RGB(210, 105, 30);
+	colors[108] = RGB(139, 69, 19);
+	colors[109] = RGB(255, 245, 238);
+	colors[110] = RGB(160, 82, 45);
+	colors[111] = RGB(255, 160, 122);
+	colors[112] = RGB(255, 127, 80);
+	colors[113] = RGB(255, 69, 0);
+	colors[114] = RGB(233, 150, 122);
+	colors[115] = RGB(255, 99, 71);
+	colors[116] = RGB(255, 228, 225);
+	colors[117] = RGB(250, 128, 114);
+	colors[118] = RGB(255, 250, 250);
+	colors[119] = RGB(240, 128, 128);
+	colors[120] = RGB(188, 143, 143);
+	colors[121] = RGB(205, 92, 92);
+	colors[122] = RGB(255, 0, 0);
+	colors[123] = RGB(165, 42, 42);
+	colors[124] = RGB(178, 34, 34);
+	colors[125] = RGB(139, 0, 0);
+	colors[126] = RGB(128, 0, 0);
+	colors[127] = RGB(255, 255, 255);
+	colors[128] = RGB(245, 245, 245);
+	colors[129] = RGB(220, 220, 220);
+	colors[130] = RGB(211, 211, 211);
+	colors[131] = RGB(192, 192, 192);
+	colors[132] = RGB(169, 169, 169);
+	colors[133] = RGB(128, 128, 128);
+	colors[134] = RGB(105, 105, 105);
+	colors[135] = RGB(0, 0, 0);
 
 	m_displayGrid = false;
 	m_displayTin = true;
@@ -485,18 +633,22 @@ CGISTinView::CGISTinView()
 	pDataPackage = NULL;
 
 	bias_x = bias_y = 0;
-	for (int i = 0; i <= 13; i++) {
+	for (int i = 0; i < MAX_COLOR_NUM; i++) {
+		//colors[i] = RGB(rand() % 255, (rand() + i) % 255, (rand() + 2 * i) % 255);
 		MyPen[i].CreatePen(PS_SOLID, 1, colors[i]);
 		MyBrush[i].CreateSolidBrush(colors[i]);
 	}
 
-	for (int i = 14; i < MAX_COLOR_NUM; i++) {
-		colors[i] = RGB(rand() % 255, (rand() + i) % 255, (rand() + 2 * i) % 255);
-		MyPen[i].CreatePen(PS_SOLID, 1, colors[i]);
-		MyBrush[i].CreateSolidBrush(colors[i]);
-	}
+	m_ColorRefTable[-1.0] = BLUE;
+	m_ColorRefTable[0.0] = WHITE;
+	m_ColorRefTable[1.0] = GREEN;
+	m_ColorRefTable[2.0] = INDIGO;
+	m_ColorRefTable[3.0] = PERU;
+	m_ColorRefTable[5.0] = RED;
+	m_ColorRefTable[1000.0] = RED;
 
-	m_DisplayResultPath = false;
+	m_DisplayResultPath = true;
+
 }
 
 CGISTinView::~CGISTinView()
@@ -1004,13 +1156,37 @@ void CGISTinView::DrawDelaunay(CDC *pDC, DCEL **pEdge, long nCount, COLORREF col
 	GrayPen.CreatePen(PS_SOLID, nWidth, colors[PURPLE]);
 
 	CPen *OldPen = pDC->SelectObject(&BluePen);
+	map<double, int>::iterator iter = m_ColorRefTable.begin();
 	for (int i = 0; i < nCount; i ++)
 	{
+		COLOR color = BLACK;
 		DCEL *pdecl = pEdge[i];
+		iter = m_ColorRefTable.find(pdecl->resistance);
+		if (iter != m_ColorRefTable.end()) {
+			color = (COLOR)iter->second;
+		}
+		else
+		{
+			int rnd = 0;
+			
+			do
+			{
+				//TODO: 验证随机生成的rnd颜色是否已存在，存在则继续随机数生成
+				rnd = int(rand() / (RAND_MAX + 1.0) * (MAX_COLOR_NUM + 10)) % MAX_COLOR_NUM;
+				for (iter = m_ColorRefTable.begin(); iter != m_ColorRefTable.end(); iter++) {
+					if (iter->second == rnd) {
+						break;
+					}
+				}
+			} while (iter != m_ColorRefTable.end());
+			color = (COLOR)rnd;
+			m_ColorRefTable[pdecl->resistance] = rnd;
+			
+		}
 		PNT P1 = {pdecl->e[0].oData->x, pdecl->e[0].oData->y};
 		PNT P2 = {pdecl->e[1].oData->x, pdecl->e[1].oData->y};
 		GetScreenPoint(&P1); GetScreenPoint(&P2); 
-		pDC->SelectObject(&MyPen[(int)pdecl->resistance % MAX_COLOR_NUM]);
+		pDC->SelectObject(&MyPen[color]);
 		pDC->MoveTo(P1.x, P1.y);
 		pDC->LineTo(P2.x, P2.y);
 		//if (pdecl->resistance) {
@@ -2198,7 +2374,8 @@ void CGISTinView::CreateLinePath() {
 		for (int i = 0; i < CurrPoint.nLineCount; i++) {
 			long LID = CurrPoint.pConnectLineIDs[i];
 			DCEL *pLine = m_pDelaunayEdge[LID];
-			if (pLine != NULL && pLine->resistance != -1) {
+			//控制哪些属性不可通行
+			if (pLine != NULL && (pLine->resistance < 3) && (pLine->resistance >= 0)) {//pLine->resistance != 3) || (pLine->resistance != 5)) { 
 				Point2d P0(pLine->e[0].oData->x, pLine->e[0].oData->y);
 				Point2d P1(pLine->e[1].oData->x, pLine->e[1].oData->y);
 				int idx1 = mHashTable[P0];

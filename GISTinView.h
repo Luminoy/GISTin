@@ -25,7 +25,7 @@
 #define   ThreadPoolSIZE    8
 #define   BlockGridSize     100 
 #define   BlockGridOffset   0.1
-#define   MAX_COLOR_NUM     32
+#define   MAX_COLOR_NUM     136
 //------------------
 
 
@@ -122,6 +122,7 @@ private:
    double bias_x, bias_y;
 
    bool m_DisplayResultPath;
+   map<double, int> m_ColorRefTable;
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);

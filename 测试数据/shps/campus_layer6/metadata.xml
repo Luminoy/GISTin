@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="zh"><Esri><CreaDate>20160706</CreaDate><CreaTime>16115000</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="e:\program files (x86)\arcgis\desktop10.1\ArcToolbox\Toolboxes\Spatial Analyst Tools.tbx\Reclassify" Date="20160706" Time="161150">Reclassify campus_layer5 VALUE "0 0;1 1;2 2;3 1000;5 1000" E:\TEST\campu_layer6 DATA</Process></lineage></DataProperties></Esri></metadata>
