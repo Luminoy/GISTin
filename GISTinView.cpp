@@ -342,23 +342,31 @@ vector<PNT> CGISTinView::SplitLongSegments(vector<pair<vector<PNT>, double> >& m
 	return PNTSet;
 }
 
-bool pntset_cmp(const PNT &P1, const PNT &P2) {
+template<typename POINT>
+bool point_cmp(const POINT &P1, const POINT &P2) {
 	return (P1.x < P2.x) || ((P1.x == P2.x) && (P1.y < P2.y));
 }
 
-bool unique_cmp(const PNT &P1, const PNT &P2) {
+template<typename POINT>
+bool unique_cmp(const POINT &P1, const POINT &P2) {
 	return (P1.x == P2.x) && (P1.y == P2.y);
 }
 
-bool unique_shedhold(const PNT &P1, const PNT &P2) {
+template<typename POINT>
+bool unique_shedhold(const POINT &P1, const POINT &P2) {
 	return ((abs(P1.x - P2.x) <= 0.01) && (abs(P1.y - P2.y) <= 0.01));
+}
+
+template<>
+bool unique_shedhold(const MyPoint &P1, const MyPoint &P2) {
+	return ((abs(P1.x - P2.x) <= 1e-6) && (abs(P1.y - P2.y) <= 1e-6));
 }
 
 void CGISTinView::ElimiateDuplicatePoints(vector<PNT> &PNTSet) {
 	int prev_count = PNTSet.size();
-	sort(PNTSet.begin(), PNTSet.end(), pntset_cmp);
+	sort(PNTSet.begin(), PNTSet.end(), point_cmp<PNT>);
 
-	vector<PNT>::iterator iter = unique(PNTSet.begin(), PNTSet.end(), unique_shedhold);
+	vector<PNT>::iterator iter = unique(PNTSet.begin(), PNTSet.end(), unique_shedhold<PNT>);
 	PNTSet.erase(iter, PNTSet.end());
 
 	CString cstr;
@@ -3121,43 +3129,78 @@ inline double CGISTinView::DistanceOfTwoPoints(double x1, double y1, double x2, 
 	return sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2));
 }
 
+
+vector<MyPoint> CGISTinView::AppendPointsInRectangleArea(double xmin, double xmax, double ymin, double ymax) {
+	vector<MyPoint> vecMyPoints;
+	for (int i = 0; i < pointNumber; i++) {
+		double x = PointData[i].x;
+		double y = PointData[i].y;
+		if ((x >= xmin) && (x <= xmax) && (y >= ymin) && (y <= ymax)) {
+			MyPoint point;
+			point.x = x;
+			point.y = y;
+			vecMyPoints.push_back(point);
+		}
+	}
+	return vecMyPoints;
+}
+
 void CGISTinView::OnPointDensify()
 {
-	// TODO: 在此添加命令处理程序代码
 	bool *visited = new bool[pointNumber];
 	memset(visited, 0, pointNumber * sizeof(bool));
-	vector<Point2d *> vecPoints;
+	vector<Point2d> vecPoints;
+	double xmin, xmax, ymin, ymax;
+	xmin = ymin = INT_MAX;
+	xmax = ymax = INT_MIN;
 	for (int i = 0; i < nPathPointNum; i++) {
 		MyPoint& pPoint = pPathPoints[i];
 		Point2d point(pPoint.x, pPoint.y);
 		int PID = mHashTable[point];
+		if (pPoint.x < xmin)  xmin = pPoint.x;
+		if (pPoint.x > xmax)  xmax = pPoint.x;
+		if (pPoint.y < ymin)  ymin = pPoint.y;
+		if (pPoint.y > ymax)  ymax = pPoint.y;
 		//visited[PID] = true;           //bug!! 导致终止点未加入点集！！
 		for (int k = 0; k < pTopoPointCollection[PID].nLineCount; k++) {
 			int LID = pTopoPointCollection[PID].pConnectLineIDs[k];
 			DCEL *pEdge = m_pDelaunayEdge[LID];
+
 			point.x = pEdge->e[1].oData->x;
 			point.y = pEdge->e[1].oData->y;
 			int P1 = mHashTable[point];
 			point.x = pEdge->e[0].oData->x;
 			point.y = pEdge->e[0].oData->y;
 			int P2 = mHashTable[point];
-
 			if (!visited[P1]) {
 				if (pEdge->e[0].oData->x == pPathPoints[i].x && pEdge->e[0].oData->y == pPathPoints[i].y) {
-					vecPoints.push_back(pEdge->e[1].oData);
+					vecPoints.push_back(*pEdge->e[1].oData);
 					visited[P1] = true;
 				}
 			}
-			if(!visited[P2]) {
+			if (!visited[P2]) {
 				if (pEdge->e[1].oData->x == pPathPoints[i].x && pEdge->e[1].oData->y == pPathPoints[i].y) {
-					vecPoints.push_back(pEdge->e[0].oData);
+					vecPoints.push_back(*pEdge->e[0].oData);
 					visited[P2] = true;
 				}
 			}
 		}
 	}
+	vector<MyPoint> vecMyPoints = AppendPointsInRectangleArea(xmin, xmax, ymin, ymax);
 
-	int origin_num = vecPoints.size();
+	for (int i = 0; i < vecPoints.size(); i++) {
+		MyPoint point;
+		point.x = vecPoints[i].x;
+		point.y = vecPoints[i].y;
+		vecMyPoints.push_back(point);
+	}
+
+	// 去重
+	sort(vecMyPoints.begin(), vecMyPoints.end(), point_cmp<MyPoint>);
+	vector<MyPoint>::iterator iter = unique(vecMyPoints.begin(), vecMyPoints.end(), unique_shedhold<MyPoint>);
+	vecMyPoints.erase(iter, vecMyPoints.end());
+
+	int origin_num = vecMyPoints.size();
 	int total_num = origin_num * 5;
 	MyPoint *pNewPoints = new MyPoint[total_num];
 
@@ -3168,15 +3211,15 @@ void CGISTinView::OnPointDensify()
 	str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y, PointData[nStartPointID].x, PointData[nStartPointID].y);
 	AfxMessageBox(str1);
 
-	for (int i = 0; i < vecPoints.size(); i++) {
-		pNewPoints[i].x = vecPoints[i]->x;
-		pNewPoints[i].y = vecPoints[i]->y;
+	for (int i = 0; i < vecMyPoints.size(); i++) {
+		pNewPoints[i].x = vecMyPoints[i].x;
+		pNewPoints[i].y = vecMyPoints[i].y;
 
 		//重新确定起点与终点的ID
-		if (vecPoints[i]->x == pPathPoints[0].x && vecPoints[i]->y == pPathPoints[0].y) {
+		if (vecMyPoints[i].x == pPathPoints[0].x && vecMyPoints[i].y == pPathPoints[0].y) {
 			nEndPointID = i;
 		}
-		if (vecPoints[i]->x == pPathPoints[nPathPointNum - 1].x && vecPoints[i]->y == pPathPoints[nPathPointNum - 1].y) {
+		if (vecMyPoints[i].x == pPathPoints[nPathPointNum - 1].x && vecMyPoints[i].y == pPathPoints[nPathPointNum - 1].y) {
 			nStartPointID = i;
 		}
 	}
@@ -3215,6 +3258,34 @@ void CGISTinView::OnPointDensify()
 	CString cstr;
 	cstr.Format("total_num: %d\n", total_num);
 	AfxMessageBox(cstr);
+
+	OnGenerateDelaunay();
+
+	switch (pDataPackage->nDataType)
+	{
+	case 1:
+		AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		break;
+	case 2:
+		AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		break;
+	case 3:
+		AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		break;
+	case 4:
+		AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		break;
+	case 5:
+		AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		break;
+	case 6:
+		AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		break;
+	default:
+		AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		break;
+	}
+	OnCreatePath();
 
 	CRect Rect;
 	GetClientRect(&Rect);

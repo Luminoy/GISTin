@@ -290,6 +290,7 @@ public:
 	void GenerateRandomPoint(MyPoint * P1, MyPoint * P2, int &x, int &y);
 	void CGISTinView::GenerateRandomPoint(double x0, double y0, double x1, double y1, double &x, double &y);
 	inline double DistanceOfTwoPoints(double x1, double y1, double x2, double y2);
+	vector<MyPoint> AppendPointsInRectangleArea(double xmin, double xmax, double ymin, double ymax );
 	void OnPointDensify();
 	afx_msg void OnSavePoint();
 	afx_msg void OnSaveLine();
