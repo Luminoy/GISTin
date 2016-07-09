@@ -57,6 +57,7 @@ struct PointSet    //µã¼¯
 	bool visited;
 	int parent;
 	PointSet() : x(-1.), y(-1.), ID(-1), accu(0.), visited(false), parent(-1) {}
+	PointSet(double _x, double _y) : x(_x), y(_y), ID(-1), accu(0.), visited(false), parent(-1) {}
 };
 
 typedef struct PointSet MyPoint;
