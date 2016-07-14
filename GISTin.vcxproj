@@ -149,6 +149,7 @@
     <ClCompile Include="GISTinView.cpp" />
     <ClCompile Include="GridDlg.cpp" />
     <ClCompile Include="MainFrm.cpp" />
+    <ClCompile Include="ParamDialog.cpp" />
     <ClCompile Include="point2d.cpp" />
     <ClCompile Include="StdAfx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -171,6 +172,7 @@
     <ClInclude Include="GISTinView.h" />
     <ClInclude Include="GridDlg.h" />
     <ClInclude Include="MainFrm.h" />
+    <ClInclude Include="ParamDialog.h" />
     <ClInclude Include="point2d.h" />
     <ClInclude Include="PublicStruct.h" />
     <ClInclude Include="Resource.h" />

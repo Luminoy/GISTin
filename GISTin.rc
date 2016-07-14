@@ -203,6 +203,17 @@ BEGIN
     EDITTEXT        IDC_EDIT4,46,73,49,14,ES_AUTOHSCROLL
 END
 
+IDD_PARAM_DIALOG DIALOGEX 0, 0, 267, 235
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "确定",IDOK,151,214,50,14
+    PUSHBUTTON      "取消",IDCANCEL,210,214,50,14
+    COMBOBOX        IDC_COMBO1,118,22,97,24,CBS_DROPDOWN | CBS_SORT | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "行人类型: ",IDC_MAN_TYPE,43,25,38,8
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -262,6 +273,14 @@ BEGIN
     BEGIN
         RIGHTMARGIN, 104
     END
+
+    IDD_PARAM_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 260
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 228
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -278,6 +297,21 @@ IDC_ZOOMOUT             CURSOR                  "res\\zoomout.cur"
 IDC_SELECT              CURSOR                  "res\\select.cur"
 
 IDC_PAN                 CURSOR                  "res\\pan.cur"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_PARAM_DIALOG AFX_DIALOG_LAYOUT
+BEGIN
+    0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 100, 100
+END
 
 
 /////////////////////////////////////////////////////////////////////////////

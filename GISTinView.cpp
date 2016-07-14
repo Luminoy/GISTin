@@ -3216,62 +3216,103 @@ void CGISTinView::OnPointDensify()
 	vector<MyPoint>::iterator iter = unique(vecMyPoints.begin(), vecMyPoints.end(), unique_shedhold_1E_N6<MyPoint>);
 	vecMyPoints.erase(iter, vecMyPoints.end());
 
+	//int origin_num = vecMyPoints.size();
+	//int total_num = origin_num * 5;
+
+	//double x, y;
+	//while (vecMyPoints.size() < total_num) {
+	//	srand(time(NULL));
+	//	for (int i = vecMyPoints.size(); i < total_num; ) {
+	//		int idx1 = (int)(rand() / (RAND_MAX + 1.0) * i) % RAND_MAX;
+	//		int idx2 = (int)(rand() / (RAND_MAX + 1.0) * i) % RAND_MAX;
+	//		if (idx1 == idx2) {
+	//			continue;
+	//		}
+	//		double x0 = vecMyPoints[idx1].x;
+	//		double y0 = vecMyPoints[idx1].y;
+	//		double x1 = vecMyPoints[idx2].x;
+	//		double y1 = vecMyPoints[idx2].y;
+	//		GenerateRandomPoint(x0, y0, x1, y1, x, y);
+	//		MyPoint point(x, y);
+	//		vecMyPoints.push_back(point);
+	//	}
+	//	// 去重
+	//	sort(vecMyPoints.begin(), vecMyPoints.end(), point_cmp<MyPoint>);
+	//    vecMyPoints.erase(unique(vecMyPoints.begin(), vecMyPoints.end(), unique_shedhold_1E_0<MyPoint>), vecMyPoints.end());
+	//	vecMyPoints.shrink_to_fit();
+	//}
+
+	//MyPoint *pNewPoints = new MyPoint[total_num];
+	////set<MyPoint, setMyPoint_Lesser> setMyPoints;
+	//for (int i = 0; i < vecMyPoints.size(); i++) {
+	//	pNewPoints[i].x = vecMyPoints[i].x;
+	//	pNewPoints[i].y = vecMyPoints[i].y;
+
+	//	//重新确定起点与终点的ID
+	//	if (vecMyPoints[i].x == pEndPoint->x && vecMyPoints[i].y == pEndPoint->y) {
+	//		nEndPointID = i;
+	//	}
+	//	if (vecMyPoints[i].x == pStartPoint->x && vecMyPoints[i].y == pStartPoint->y) {
+	//		nStartPointID = i;
+	//	}
+	//}
+
+	//CString str1;
+	//str1.Format("EndPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nEndPointID, pPathPoints[0].x, pPathPoints[0].y, vecMyPoints[nEndPointID].x, vecMyPoints[nEndPointID].y);
+	//AfxMessageBox(str1);
+
+	//str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, vecMyPoints[nPathPointNum - 1].y, vecMyPoints[nStartPointID].x, PointData[nStartPointID].y);
+	//AfxMessageBox(str1);
+
 	int origin_num = vecMyPoints.size();
 	int total_num = origin_num * 5;
-
-	double x, y;
-	while (vecMyPoints.size() < total_num) {
-		srand(time(NULL));
-		for (int i = vecMyPoints.size(); i < total_num; ) {
-			int idx1 = (int)(rand() / (RAND_MAX + 1.0) * i) % RAND_MAX;
-			int idx2 = (int)(rand() / (RAND_MAX + 1.0) * i) % RAND_MAX;
-			if (idx1 == idx2) {
-				continue;
-			}
-			double x0 = vecMyPoints[idx1].x;
-			double y0 = vecMyPoints[idx1].y;
-			double x1 = vecMyPoints[idx2].x;
-			double y1 = vecMyPoints[idx2].y;
-			GenerateRandomPoint(x0, y0, x1, y1, x, y);
-			MyPoint point(x, y);
-			vecMyPoints.push_back(point);
-			//int k = 0;
-			//for (; k < i; k++) {
-			//	if (DistanceOfTwoPoints(pNewPoints[k].x, pNewPoints[k].y, x, y) < MIN_DIS_VALUE) {
-			//		break;
-			//	}
-			//}
-			//if (k != i)	continue;
-			//pNewPoints[i].x = x;
-			//pNewPoints[i++].y = y;
-		}
-		// 去重
-		sort(vecMyPoints.begin(), vecMyPoints.end(), point_cmp<MyPoint>);
-	    vecMyPoints.erase(unique(vecMyPoints.begin(), vecMyPoints.end(), unique_shedhold_1E_0<MyPoint>), vecMyPoints.end());
-		vecMyPoints.shrink_to_fit();
-	}
-
 	MyPoint *pNewPoints = new MyPoint[total_num];
-	//set<MyPoint, setMyPoint_Lesser> setMyPoints;
+
+	CString str1;
+	str1.Format("EndPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nEndPointID, pPathPoints[0].x, pPathPoints[0].y, PointData[nEndPointID].x, PointData[nEndPointID].y);
+	AfxMessageBox(str1);
+
+	str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y, PointData[nStartPointID].x, PointData[nStartPointID].y);
+	AfxMessageBox(str1);
+
 	for (int i = 0; i < vecMyPoints.size(); i++) {
 		pNewPoints[i].x = vecMyPoints[i].x;
 		pNewPoints[i].y = vecMyPoints[i].y;
 
 		//重新确定起点与终点的ID
-		if (vecMyPoints[i].x == pEndPoint->x && vecMyPoints[i].y == pEndPoint->y) {
+		if (vecMyPoints[i].x == pPathPoints[0].x && vecMyPoints[i].y == pPathPoints[0].y) {
 			nEndPointID = i;
 		}
-		if (vecMyPoints[i].x == pStartPoint->x && vecMyPoints[i].y == pStartPoint->y) {
+		if (vecMyPoints[i].x == pPathPoints[nPathPointNum - 1].x && vecMyPoints[i].y == pPathPoints[nPathPointNum - 1].y) {
 			nStartPointID = i;
 		}
 	}
 
-	CString str1;
-	str1.Format("EndPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nEndPointID, pPathPoints[0].x, pPathPoints[0].y, vecMyPoints[nEndPointID].x, vecMyPoints[nEndPointID].y);
-	AfxMessageBox(str1);
+	//nStartPointID = vecPoints.size() - 1;
+	//nEndPointID = nPathPointNum + vecPoints.size() - 1;
 
-	str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, vecMyPoints[nPathPointNum - 1].y, vecMyPoints[nStartPointID].x, PointData[nStartPointID].y);
-	AfxMessageBox(str1);
+	double x, y;
+	for (int i = origin_num; i < total_num; ) {
+		int idx1 = rand() % i;
+		int idx2 = rand() % i;
+		if (idx1 == idx2) {
+			continue;
+		}
+		double x0 = pNewPoints[idx1].x;
+		double y0 = pNewPoints[idx1].y;
+		double x1 = pNewPoints[idx2].x;
+		double y1 = pNewPoints[idx2].y;
+		GenerateRandomPoint(x0, y0, x1, y1, x, y);
+		int k = 0;
+		for (; k < i; k++) {
+			double dis = DistanceOfTwoPoints(pNewPoints[k].x, pNewPoints[k].y, x, y);
+			if (dis < MIN_DIS_VALUE)
+				break;
+		}
+		if (k != i)	continue;
+		pNewPoints[i].x = x;
+		pNewPoints[i++].y = y;
+	}
 
 	delete[]PointData;
 	PointData = pNewPoints;

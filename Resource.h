@@ -11,10 +11,13 @@
 #define IDC_PAN                         133
 #define IDD_GRID_DLG                    142
 #define IDD_THRESHOLD                   143
+#define IDD_PARAM_DIALOG                144
 #define IDC_EDIT1                       1000
 #define IDC_EDIT2                       1001
 #define IDC_EDIT3                       1003
 #define IDC_EDIT4                       1005
+#define IDC_COMBO1                      1006
+#define IDC_MAN_TYPE                    1007
 #define ID_LOAD_POINT_FILE              32771
 #define ID_LOAD_LINE_FILE               32772
 #define ID_GLOBE                        32773
@@ -66,9 +69,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        144
+#define _APS_NEXT_RESOURCE_VALUE        146
 #define _APS_NEXT_COMMAND_VALUE         32839
-#define _APS_NEXT_CONTROL_VALUE         1004
+#define _APS_NEXT_CONTROL_VALUE         1008
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
