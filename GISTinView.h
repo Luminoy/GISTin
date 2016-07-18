@@ -295,6 +295,7 @@ public:
 	afx_msg void OnSavePoint();
 	afx_msg void OnSaveLine();
 	afx_msg void OnDisplayPath();
+	afx_msg void OnSetting();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

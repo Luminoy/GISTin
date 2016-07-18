@@ -6,6 +6,7 @@
 #include "GISTinView.h"
 #include "GridDlg.h"
 #include "math.h"
+#include "ParamDialog.h"
 
 #include "BinaryTree.h"
 
@@ -61,6 +62,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_SAVE_POINT, &CGISTinView::OnSavePoint)
 	ON_COMMAND(ID_SAVE_LINE, &CGISTinView::OnSaveLine)
 	ON_COMMAND(ID_DISPLAY_PATH, &CGISTinView::OnDisplayPath)
+	ON_COMMAND(ID_SETTING, &CGISTinView::OnSetting)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -3422,4 +3424,12 @@ void CGISTinView::OnDisplayPath()
 		m_DisplayResultPath = true;
 	}
 	RefreshScreen();
+}
+
+
+void CGISTinView::OnSetting()
+{
+	// TODO: 在此添加命令处理程序代码
+	CParamDialog paradlg;
+	paradlg.DoModal();
 }
