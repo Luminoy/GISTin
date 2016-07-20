@@ -96,7 +96,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
       <OutputFile>.\Debug\GISTin.exe</OutputFile>
-      <AdditionalDependencies>gdal_i.lib</AdditionalDependencies>
+      <AdditionalDependencies>gdal_i.lib;legacy_stdio_definitions.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -164,6 +164,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BinaryTree.h" />
+    <ClInclude Include="CApplication.h" />
+    <ClInclude Include="CExcelFont.h" />
+    <ClInclude Include="CRange.h" />
+    <ClInclude Include="CWorkbook.h" />
+    <ClInclude Include="CWorkbooks.h" />
+    <ClInclude Include="CWorksheet.h" />
+    <ClInclude Include="CWorksheets.h" />
     <ClInclude Include="dcel.h" />
     <ClInclude Include="delaunaytriangulation.h" />
     <ClInclude Include="edge.h" />

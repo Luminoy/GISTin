@@ -17,11 +17,16 @@
 #define IDC_EDIT3                       1003
 #define IDC_EDIT4                       1005
 #define IDC_MANTYPE                     1006
+#define IDC_MAN_TYPE                    1006
 #define IDC_STATIC1                     1007
 #define IDC_WALK_TYPE                   1008
 #define IDC_STATIC2                     1009
 #define IDC_LIST1                       1010
 #define IDC_TABLE                       1010
+#define IDC_META_TYPE                   1012
+#define IDC_MFCEDITBROWSE1              1013
+#define IDC_FILEBROWSE                  1013
+#define IDC_GROUP_BOX                   1014
 #define ID_LOAD_POINT_FILE              32771
 #define ID_LOAD_LINE_FILE               32772
 #define ID_GLOBE                        32773
@@ -75,9 +80,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        146
+#define _APS_NEXT_RESOURCE_VALUE        147
 #define _APS_NEXT_COMMAND_VALUE         32841
-#define _APS_NEXT_CONTROL_VALUE         1011
+#define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
