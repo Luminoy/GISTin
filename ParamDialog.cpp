@@ -106,6 +106,7 @@ void CParamDialog::OnEnChangeFilebrowse()
 	}
 	else
 	{
+		ExcelRead2(strText);
 		SetGroupBoxStatus(TRUE);
 	}
 }
@@ -262,11 +263,11 @@ BOOL CParamDialog::ExcelRead(CString strPathName) {
 }
 
 BOOL CParamDialog::ExcelRead2(CString strPathName) {
-	if (m_oExcelApp.CreateDispatch(_T("Excel.Application"))) {
+	if (!m_oExcelApp.CreateDispatch(_T("Excel.Application"))) {
 		::MessageBox(NULL, _T("创建Excel服务失败！"), _T("错误提示！"), MB_OK | MB_ICONERROR);
 		exit(1);
 	}
-	m_oExcelApp.put_Visible(TRUE); //m_oExcelApp.SetVisible(FALSE);
+	m_oExcelApp.put_Visible(FALSE); //m_oExcelApp.SetVisible(FALSE);
 	m_oWorkBooks.AttachDispatch(m_oExcelApp.get_Workbooks(), TRUE);  // m_oExcelApp.GetWorkbooks()
 	CRange oCurCell;
 	LPDISPATCH lpDisp = NULL;
@@ -276,5 +277,42 @@ BOOL CParamDialog::ExcelRead2(CString strPathName) {
 
 	lpDisp = m_oWorkBooks.Open(strPathName, _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing),
 		_variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing));
+	
+	m_oWorkBook.AttachDispatch(lpDisp, TRUE);
+	m_oWorkSheets.AttachDispatch(m_oWorkBook.get_Sheets(), TRUE);
+	long nSheetCount = 0;
+	nSheetCount = m_oWorkSheets.get_Count();
+	
+	// 获取工作表的名称集合
+	for (int i = 1; i <= nSheetCount; i++) {
+		CWorksheet wsheet;
+		wsheet.AttachDispatch(m_oWorkSheets.get_Item(COleVariant((long)i)), TRUE);
+		AfxMessageBox(wsheet.get_Name());
+	}
+	m_oWorkSheet.AttachDispatch(m_oWorkBook.get_ActiveSheet(), TRUE);
+	m_oCurrRange.AttachDispatch(m_oWorkSheet.get_UsedRange(), TRUE);
 
+	long nUsedRow = 0;
+	m_oCurrRange.AttachDispatch(m_oCurrRange.get_Rows(), TRUE);
+	nUsedRow = m_oCurrRange.get_Count();
+
+	long nUsedColumn = 0;
+	m_oCurrRange.AttachDispatch(m_oCurrRange.get_Columns(), TRUE);
+	nUsedColumn = m_oCurrRange.get_Count();
+
+	CString strSheetName = m_oWorkSheet.get_Name();
+	AfxMessageBox(strSheetName);
+
+	
+	m_oWorkBook.Close(covOptional, COleVariant(strPathName), covOptional);
+	m_oWorkBooks.Close();
+	// 释放
+	m_oCurrRange.ReleaseDispatch();
+	m_oWorkSheet.ReleaseDispatch();
+	m_oWorkSheets.ReleaseDispatch();
+	m_oWorkBook.ReleaseDispatch();
+	m_oWorkBooks.ReleaseDispatch();
+	m_oExcelApp.ReleaseDispatch();
+	m_oExcelApp.Quit();
+	return TRUE;
 }
