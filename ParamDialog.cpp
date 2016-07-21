@@ -56,32 +56,32 @@ BOOL CParamDialog::OnInitDialog()
 	SetGroupBoxStatus(0);
 
 	// 以后改成从数据库中读取表头信息
-	CString man_type[] = {_T("成人"),_T("老弱"),_T("儿童") };
-	for (int i = 0; i < sizeof(man_type) / sizeof(CString); i++) {
-		m_manType.InsertString(i, man_type[i]);
-	}
-	m_manType.SetCurSel(0);
+	//CString man_type[] = {_T("成人"),_T("老弱"),_T("儿童") };
+	//for (int i = 0; i < sizeof(man_type) / sizeof(CString); i++) {
+	//	m_manType.InsertString(i, man_type[i]);
+	//}
+	//m_manType.SetCurSel(0);
 
-	CString walk_type[] = { _T("步行"),_T("自行车"),_T("汽车") };
-	for (int i = 0; i < sizeof(walk_type) / sizeof(CString); i++) {
-		m_walkType.InsertString(i, walk_type[i]);
-	}
-	m_walkType.SetCurSel(0);
+	//CString walk_type[] = { _T("步行"),_T("自行车"),_T("汽车") };
+	//for (int i = 0; i < sizeof(walk_type) / sizeof(CString); i++) {
+	//	m_walkType.InsertString(i, walk_type[i]);
+	//}
+	//m_walkType.SetCurSel(0);
 
-	CString meta_type[] = { _T("地表类型"), _T("地形坡度"), _T("速度"), _T("时间"), _T("体力") };
-	for (int i = 0; i < sizeof(meta_type) / sizeof(CString); i++) {
-		m_metaType.InsertString(i, meta_type[i]);
-	}
-	m_metaType.SetCurSel(0);
+	//CString meta_type[] = { _T("地表类型"), _T("地形坡度"), _T("速度"), _T("时间"), _T("体力") };
+	//for (int i = 0; i < sizeof(meta_type) / sizeof(CString); i++) {
+	//	m_metaType.InsertString(i, meta_type[i]);
+	//}
+	//m_metaType.SetCurSel(0);
 
-	CString headers[] = { _T("NO"), _T("类型"), _T("值")};
-	for (int i = 0; i < sizeof(headers) / sizeof(CString); i++) {
-		m_attrTable.InsertColumn(i, headers[i], LVCFMT_LEFT, 80);
-	}
-	
-	m_attrTable.InsertItem(0, "NO.1");
-	m_attrTable.SetItemText(0, 1, "daolu");
-	m_attrTable.SetItemText(0, 2, "slow");
+	//CString headers[] = { _T("NO"), _T("类型"), _T("值")};
+	//for (int i = 0; i < sizeof(headers) / sizeof(CString); i++) {
+	//	m_attrTable.InsertColumn(i, headers[i], LVCFMT_LEFT, 80);
+	//}
+	//
+	//m_attrTable.InsertItem(0, "NO.1");
+	//m_attrTable.SetItemText(0, 1, "daolu");
+	//m_attrTable.SetItemText(0, 2, "slow");
 	return TRUE;  
 	// return TRUE unless you set the focus to a control
 	// 异常: OCX 属性页应返回 FALSE
@@ -106,9 +106,73 @@ void CParamDialog::OnEnChangeFilebrowse()
 	}
 	else
 	{
-		ExcelRead2(strText);
 		SetGroupBoxStatus(TRUE);
+
+		OnReadExcelFile(strText);
+		CWorksheet sheet;
+		CRange cells;
+		long rows, columns;
+
+		sheet = GetWorksheet("行人类型");
+		cells = GetTable(sheet, rows, columns);
+
+		long j = 1; // 第二列
+		for (long i = 0; i < rows; i++) {
+			CRange cell;
+			cell.AttachDispatch(cells.get_Item(COleVariant(i + 1), COleVariant(j + 1)).pdispVal, TRUE); // 从1开始的索引
+			VARIANT item = cell.get_Text();
+			m_manType.InsertString(i, CString(item.bstrVal));
+		}
+		sheet.DetachDispatch();
+		cells.DetachDispatch();
+		m_manType.SetCurSel(0);
+		
+
+		sheet = GetWorksheet("通行类型");
+		cells = GetTable(sheet, rows, columns);
+
+		j = 1; // 第二列
+		for (long i = 0; i < rows; i++) {
+			CRange cell;
+			cell.AttachDispatch(cells.get_Item(COleVariant(i + 1), COleVariant(j + 1)).pdispVal, TRUE); // 从1开始的索引
+			VARIANT item = cell.get_Text();
+			m_walkType.InsertString(i, CString(item.bstrVal));
+		}
+		sheet.DetachDispatch();
+		cells.DetachDispatch();
+		m_walkType.SetCurSel(0);
+
+
+		sheet = GetWorksheet("因子类型");
+		cells = GetTable(sheet, rows, columns);
+
+		j = 1; // 第二列
+		for (long i = 0; i < rows; i++) {
+			CRange cell;
+			cell.AttachDispatch(cells.get_Item(COleVariant(i + 1), COleVariant(j + 1)).pdispVal, TRUE); // 从1开始的索引
+			VARIANT item = cell.get_Text();
+			m_metaType.InsertString(i, CString(item.bstrVal));
+		}
+		sheet.DetachDispatch();
+		cells.DetachDispatch();
+		m_metaType.SetCurSel(0);
+
+		ReleaseExcelHandle(strText);
 	}
+}
+
+CRange CParamDialog::GetTable(CWorksheet &sheet, long &nUsedRow, long &nUsedColumn) {
+	CRange range, cells;
+	range.AttachDispatch(sheet.get_UsedRange(), TRUE);
+
+	range.AttachDispatch(range.get_Rows(), TRUE);
+	nUsedRow = range.get_Count();
+
+	range.AttachDispatch(range.get_Columns(), TRUE);
+	nUsedColumn = range.get_Count();
+
+	cells.AttachDispatch(sheet.get_Cells(), TRUE);
+	return cells;
 }
 
 void CParamDialog::SetGroupBoxStatus(BOOL bFlag) 
@@ -119,80 +183,62 @@ void CParamDialog::SetGroupBoxStatus(BOOL bFlag)
 	GetDlgItem(IDC_TABLE)->EnableWindow(bFlag);
 }
 
-void CParamDialog::OnReadExcelFile(CString pathname) 
+CWorksheets CParamDialog::OnReadExcelFile(CString strPathName)
 {
-	// TODO: Add your control notification handler code here
-	CDatabase database;
-	CString sSql;
-	CString sItem1, sItem2, sItem3;
-	CString sDriver;
-	CString sDsn;
-	CString sFile, sPath;
+	COleVariant covTrue((short)TRUE);
+	COleVariant covFalse((short)FALSE);
 
+	if (!m_oExcelApp.CreateDispatch(_T("Excel.Application"))) {
+		::MessageBox(NULL, _T("创建Excel服务失败！"), _T("错误提示！"), MB_OK | MB_ICONERROR);
+		exit(1);
+	}
+	m_oExcelApp.put_Visible(TRUE); //m_oExcelApp.SetVisible(FALSE);
+	m_oWorkBooks.AttachDispatch(m_oExcelApp.get_Workbooks(), TRUE);  // m_oExcelApp.GetWorkbooks()
 
-	//获取主程序所在路径,存在sPath中
-	GetModuleFileName(NULL, sPath.GetBufferSetLength(MAX_PATH + 1), MAX_PATH);
-	sPath.ReleaseBuffer();
-	int nPos;
-	nPos = sPath.ReverseFind('\\');
-	sPath = sPath.Left(nPos);
+	m_lpDisp = m_oWorkBooks.Open(strPathName, _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing),
+		_variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing));
 
-	sFile = sPath + "\\Demo.xls";     // 将被读取的Excel文件名
+	m_oWorkBook.AttachDispatch(m_lpDisp, TRUE);
+	m_oWorkSheets.AttachDispatch(m_oWorkBook.get_Sheets(), TRUE);
 
-									  // 检索是否安装有Excel驱动 "Microsoft Excel Driver (*.xls)" 
-	sDriver = GetExcelDriver();
-	if (sDriver.IsEmpty())
-	{
-		// 没有发现Excel驱动
-		AfxMessageBox("没有安装Excel驱动!");
-		return;
+	long nSheetCount = 0;
+	nSheetCount = m_oWorkSheets.get_Count();
+
+	// 获取工作表的名称集合
+	for (int i = 1; i <= nSheetCount; i++) {
+		CWorksheet wsheet;
+		wsheet.AttachDispatch(m_oWorkSheets.get_Item(COleVariant((long)i)), TRUE);
+		AfxMessageBox(wsheet.get_Name());
+		mapWorksheet.insert(std::make_pair(wsheet.get_Name(), i));
 	}
 
-	// 创建进行存取的字符串
-	sDsn.Format("ODBC;DRIVER={%s};DSN=' ';DBQ=%s", sDriver, sFile);
-
-	TRY
-	{
-		// 打开数据库(既Excel文件)
-		database.Open(NULL, false, false, sDsn);
-
-	CRecordset recset(&database);
-
-	// 设置读取的查询语句.
-	sSql = "SELECT Num,Name, Age " //设置索引顺序     
-		"FROM Exceldemo ";
-	"ORDER BY Name ";
-
-	// 执行查询语句
-	recset.Open(CRecordset::forwardOnly, sSql, CRecordset::readOnly);
-
-	// 获取查询结果
-	while (!recset.IsEOF())
-	{
-		//读取Excel内部数值
-		recset.GetFieldValue("Num", sItem1);
-		recset.GetFieldValue("Name", sItem2);
-		recset.GetFieldValue("Age", sItem3);
-
-		//显示记取的内容
-		m_metaType.AddString(sItem1 + " --> " + sItem2 + " --> " + sItem3);
-
-		// 移到下一行
-		recset.MoveNext();
-	}
-
-	// 关闭数据库
-	database.Close();
-
-	}
-		CATCH(CDBException, e)
-	{
-		// 数据库操作产生异常时...
-		AfxMessageBox("数据库错误: " + e->m_strError);
-	}
-	END_CATCH;
+	return m_oWorkSheets;
 }
 
+CWorksheet CParamDialog::GetWorksheet(CString strWorksheetName) {
+	long idx = -1;
+	if ((idx = mapWorksheet[strWorksheetName]) != -1) {
+		CWorksheet wsheet;
+		wsheet.AttachDispatch(m_oWorkSheets.get_Item(COleVariant(idx)), TRUE);
+		return wsheet;
+	}
+	return NULL;
+}
+
+void CParamDialog::ReleaseExcelHandle(CString strPathName) {
+	// 释放
+	COleVariant covOptional((long)DISP_E_PARAMNOTFOUND, VT_ERROR);
+	m_oWorkBook.Close(covOptional, COleVariant(strPathName), covOptional);
+	m_oWorkBooks.Close();
+
+	m_oCurrRange.ReleaseDispatch();
+	m_oWorkSheet.ReleaseDispatch();
+	m_oWorkSheets.ReleaseDispatch();
+	m_oWorkBook.ReleaseDispatch();
+	m_oWorkBooks.ReleaseDispatch();
+	m_oExcelApp.ReleaseDispatch();
+	m_oExcelApp.Quit();
+}
 CString CParamDialog::GetExcelDriver()
 {
 	char szBuf[2001];
@@ -223,6 +269,15 @@ CString CParamDialog::GetExcelDriver()
 
 BOOL CParamDialog::ExcelRead(CString strPathName) {
 	//导出
+	CApplication app;
+	CWorkbook book;
+	CWorkbooks books;
+	CWorksheet sheet;
+	CWorksheets sheets;
+	CRange range;
+	CExcelFont font;
+	CRange cols;
+
 	COleVariant covTrue((short)TRUE);
 	COleVariant covFalse((short)FALSE);
 	COleVariant covOptional((long)DISP_E_PARAMNOTFOUND, VT_ERROR);
@@ -263,56 +318,6 @@ BOOL CParamDialog::ExcelRead(CString strPathName) {
 }
 
 BOOL CParamDialog::ExcelRead2(CString strPathName) {
-	if (!m_oExcelApp.CreateDispatch(_T("Excel.Application"))) {
-		::MessageBox(NULL, _T("创建Excel服务失败！"), _T("错误提示！"), MB_OK | MB_ICONERROR);
-		exit(1);
-	}
-	m_oExcelApp.put_Visible(FALSE); //m_oExcelApp.SetVisible(FALSE);
-	m_oWorkBooks.AttachDispatch(m_oExcelApp.get_Workbooks(), TRUE);  // m_oExcelApp.GetWorkbooks()
-	CRange oCurCell;
-	LPDISPATCH lpDisp = NULL;
-	COleVariant covTrue((short)TRUE);
-	COleVariant covFalse((short)FALSE);
-	COleVariant covOptional((long)DISP_E_PARAMNOTFOUND, VT_ERROR);
-
-	lpDisp = m_oWorkBooks.Open(strPathName, _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing),
-		_variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing), _variant_t(vtMissing));
-	
-	m_oWorkBook.AttachDispatch(lpDisp, TRUE);
-	m_oWorkSheets.AttachDispatch(m_oWorkBook.get_Sheets(), TRUE);
-	long nSheetCount = 0;
-	nSheetCount = m_oWorkSheets.get_Count();
-	
-	// 获取工作表的名称集合
-	for (int i = 1; i <= nSheetCount; i++) {
-		CWorksheet wsheet;
-		wsheet.AttachDispatch(m_oWorkSheets.get_Item(COleVariant((long)i)), TRUE);
-		AfxMessageBox(wsheet.get_Name());
-	}
-	m_oWorkSheet.AttachDispatch(m_oWorkBook.get_ActiveSheet(), TRUE);
-	m_oCurrRange.AttachDispatch(m_oWorkSheet.get_UsedRange(), TRUE);
-
-	long nUsedRow = 0;
-	m_oCurrRange.AttachDispatch(m_oCurrRange.get_Rows(), TRUE);
-	nUsedRow = m_oCurrRange.get_Count();
-
-	long nUsedColumn = 0;
-	m_oCurrRange.AttachDispatch(m_oCurrRange.get_Columns(), TRUE);
-	nUsedColumn = m_oCurrRange.get_Count();
-
-	CString strSheetName = m_oWorkSheet.get_Name();
-	AfxMessageBox(strSheetName);
-
-	
-	m_oWorkBook.Close(covOptional, COleVariant(strPathName), covOptional);
-	m_oWorkBooks.Close();
-	// 释放
-	m_oCurrRange.ReleaseDispatch();
-	m_oWorkSheet.ReleaseDispatch();
-	m_oWorkSheets.ReleaseDispatch();
-	m_oWorkBook.ReleaseDispatch();
-	m_oWorkBooks.ReleaseDispatch();
-	m_oExcelApp.ReleaseDispatch();
-	m_oExcelApp.Quit();
 	return TRUE;
 }
+
