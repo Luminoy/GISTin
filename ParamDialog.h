@@ -5,6 +5,7 @@
 #include "afxdb.h"
 #include "odbcinst.h"
 #include <map>
+#include <vector>
 #include <utility>
 
 // Excel读写依赖头文件
@@ -54,9 +55,9 @@ public:
 	void ReleaseExcelHandle(CString strPathName);
 	CRange GetTable(CWorksheet &sheet, long &nUsedRow, long &nUsedColumn);
 
-	CString GetExcelDriver();
-	BOOL ExcelRead(CString strPathName);
-	BOOL ExcelRead2(CString strPathName);
+	//CString GetExcelDriver();
+	//BOOL ExcelRead(CString strPathName);
+	//BOOL ExcelRead2(CString strPathName);
 public:
 	//定义接口类变量 
 	// 
@@ -67,5 +68,10 @@ public:
 	CWorkbook     m_oWorkBook;
 	CRange        m_oCurrRange;
 	LPDISPATCH    m_lpDisp;
+	CString       m_strText;
 	std::map<CString, long> mapWorksheet;
+	void RefreshAttrTable();
+	afx_msg void OnMetaTypeSelectChanged();
+	afx_msg void OnManTypeSelectChanged();
+	afx_msg void OnWalkTypeSelectChanged();
 };
