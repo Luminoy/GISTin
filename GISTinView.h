@@ -122,7 +122,10 @@ private:
    double bias_x, bias_y;
 
    bool m_DisplayResultPath;
-   map<double, int> m_ColorRefTable;
+   map<double, int> m_ColorRefTable;          // 栅格类型id码对应的颜色
+
+   vector<pair<int, double> > costTable;      // int与栅格地表类型id码相对应
+   vector<pair<int, double> > slopeTable;     // int与坡度范围类型id码相对应
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);

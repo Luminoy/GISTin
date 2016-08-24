@@ -34,15 +34,18 @@ void CParamDialog::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_TABLE, m_attrTable);
 	DDX_Control(pDX, IDC_MAN_TYPE, m_manType);
 	DDX_Control(pDX, IDC_WALK_TYPE, m_walkType);
-	DDX_Control(pDX, IDC_META_TYPE, m_metaType);
+	//  DDX_Control(pDX, IDC_FACTOR_TYPE, m_metaType);
+	DDX_Control(pDX, IDC_TARGET_TYPE, m_targetType);
 	DDX_Control(pDX, IDC_FILEBROWSE, m_fileBrowser);
+	DDX_Control(pDX, IDC_FACTOR_TYPE, m_factorType);
 }
 
 
 BEGIN_MESSAGE_MAP(CParamDialog, CDialog)
 	ON_EN_CHANGE(IDC_FILEBROWSE, &CParamDialog::OnEnChangeFilebrowse)
-	ON_LBN_SELCHANGE(IDC_META_TYPE, &CParamDialog::OnMetaTypeSelectChanged)
+	ON_LBN_SELCHANGE(IDC_FACTOR_TYPE, &CParamDialog::OnMetaTypeSelectChanged)
 	ON_CBN_SELCHANGE(IDC_MAN_TYPE, &CParamDialog::OnManTypeSelectChanged)
+	ON_CBN_SELCHANGE(IDC_TARGET_TYPE, &CParamDialog::OnTargetTypeSelectChanged)
 END_MESSAGE_MAP()
 
 
@@ -153,11 +156,25 @@ void CParamDialog::OnEnChangeFilebrowse()
 			CRange cell;
 			cell.AttachDispatch(cells.get_Item(COleVariant(i + 1), COleVariant(j + 1)).pdispVal, TRUE); // 从1开始的索引
 			VARIANT item = cell.get_Text();
-			m_metaType.InsertString(i, CString(item.bstrVal));
+			m_factorType.InsertString(i, CString(item.bstrVal));
 		}
 		sheet.DetachDispatch();
 		cells.DetachDispatch();
-		m_metaType.SetCurSel(0);
+		m_factorType.SetCurSel(0);
+
+		sheet = GetWorksheet("通行目标");
+		cells = GetTable(sheet, rows, columns);
+
+		j = 1; // 第二列
+		for (long i = 0; i < rows; i++) {
+			CRange cell;
+			cell.AttachDispatch(cells.get_Item(COleVariant(i + 1), COleVariant(j + 1)).pdispVal, TRUE); // 从1开始的索引
+			VARIANT item = cell.get_Text();
+			m_targetType.InsertString(i, CString(item.bstrVal));
+		}
+		sheet.DetachDispatch();
+		cells.DetachDispatch();
+		m_targetType.SetCurSel(0);
 
 		m_attrTable.InsertColumn(0, "Header", LVCFMT_LEFT, 85, 0);
 		m_attrTable.InsertColumn(1, "Value1", LVCFMT_LEFT, 85, 1);
@@ -187,7 +204,8 @@ void CParamDialog::SetGroupBoxStatus(BOOL bFlag)
 {
 	GetDlgItem(IDC_MAN_TYPE)->EnableWindow(bFlag);
 	GetDlgItem(IDC_WALK_TYPE)->EnableWindow(bFlag);
-	GetDlgItem(IDC_META_TYPE)->EnableWindow(bFlag);
+	GetDlgItem(IDC_FACTOR_TYPE)->EnableWindow(bFlag);
+	GetDlgItem(IDC_TARGET_TYPE)->EnableWindow(bFlag);
 	GetDlgItem(IDC_TABLE)->EnableWindow(bFlag);
 }
 
@@ -333,7 +351,7 @@ void CParamDialog::RefreshAttrTable()
 {
 	// 获取对应的表名
 	CString szWorksheet;
-	szWorksheet.AppendFormat("%d%d%d", m_manType.GetCurSel(), m_walkType.GetCurSel(), m_metaType.GetCurSel());
+	szWorksheet.AppendFormat("%d%d%d%d", m_manType.GetCurSel(), m_walkType.GetCurSel(), m_factorType.GetCurSel(), m_targetType.GetCurSel());
 	//AfxMessageBox(szWorksheet);
 
 	// 通过表名获取对应的表单
@@ -373,3 +391,17 @@ void CParamDialog::OnWalkTypeSelectChanged()
 {
 	RefreshAttrTable();
 }
+
+void CParamDialog::OnTargetTypeSelectChanged()
+{
+	RefreshAttrTable();
+}
+
+//INT_PTR CParamDialog::DoModal()
+//{
+//	// TODO: 在此添加专用代码和/或调用基类
+//
+//	return CDialog::DoModal();
+//}
+
+

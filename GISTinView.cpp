@@ -493,7 +493,7 @@ CGISTinView::CGISTinView()
     //Arc= new ArcSet[_MAX_ARCNUM_aMap];
 	xmin=ymin=1.E+256; xmax=ymax=-1.E+256;
 	nFlagPoint=FALSE; nFlagArc=FALSE;
-	// 颜色表
+	#pragma region 颜色表
 	colors[0] = RGB(255, 182, 193);
 	colors[1] = RGB(255, 192, 203);
 	colors[2] = RGB(220, 20, 60);
@@ -630,6 +630,7 @@ CGISTinView::CGISTinView()
 	colors[133] = RGB(128, 128, 128);
 	colors[134] = RGB(105, 105, 105);
 	colors[135] = RGB(0, 0, 0);
+#pragma endregion
 
 	m_displayGrid = false;
 	m_displayTin = true;
@@ -660,8 +661,8 @@ CGISTinView::CGISTinView()
 	m_ColorRefTable[1.0] = GREEN;
 	m_ColorRefTable[2.0] = INDIGO;
 	m_ColorRefTable[3.0] = PERU;
-	m_ColorRefTable[5.0] = RED;
-	m_ColorRefTable[1000.0] = RED;
+	m_ColorRefTable[4.0] = RED;
+	m_ColorRefTable[9999.0] = RED;
 
 	m_DisplayResultPath = true;
 

@@ -44,8 +44,9 @@ public:
 	CListCtrl          m_attrTable;
 	CComboBox          m_manType;
 	CComboBox          m_walkType;
-	CListBox           m_metaType;
+//	CListBox           m_metaType;
 	CMFCEditBrowseCtrl m_fileBrowser;
+	CComboBox          m_targetType;
 
 	// behaviors
 	void OnEnChangeFilebrowse();
@@ -74,4 +75,8 @@ public:
 	afx_msg void OnMetaTypeSelectChanged();
 	afx_msg void OnManTypeSelectChanged();
 	afx_msg void OnWalkTypeSelectChanged();
+//	virtual INT_PTR DoModal();
+	
+	CComboBox m_factorType;
+	afx_msg void OnTargetTypeSelectChanged();
 };
