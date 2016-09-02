@@ -43,9 +43,10 @@ void CParamDialog::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CParamDialog, CDialog)
 	ON_EN_CHANGE(IDC_FILEBROWSE, &CParamDialog::OnEnChangeFilebrowse)
-	ON_LBN_SELCHANGE(IDC_FACTOR_TYPE, &CParamDialog::OnMetaTypeSelectChanged)
+	ON_CBN_SELCHANGE(IDC_FACTOR_TYPE, &CParamDialog::OnFactorTypeSelectChanged)
 	ON_CBN_SELCHANGE(IDC_MAN_TYPE, &CParamDialog::OnManTypeSelectChanged)
 	ON_CBN_SELCHANGE(IDC_TARGET_TYPE, &CParamDialog::OnTargetTypeSelectChanged)
+	ON_CBN_SELCHANGE(IDC_WALK_TYPE, &CParamDialog::OnWalkTypeSelectChanged)
 END_MESSAGE_MAP()
 
 
@@ -349,9 +350,14 @@ void CParamDialog::ReleaseExcelHandle(CString strPathName) {
 
 void CParamDialog::RefreshAttrTable()
 {
+	ManTypeID = m_manType.GetCurSel();
+	WalkTypeID = m_walkType.GetCurSel();
+	FactorTypeID = m_factorType.GetCurSel();
+	TargetTypeID = m_targetType.GetCurSel();
+
 	// 获取对应的表名
 	CString szWorksheet;
-	szWorksheet.AppendFormat("%d%d%d%d", m_manType.GetCurSel(), m_walkType.GetCurSel(), m_factorType.GetCurSel(), m_targetType.GetCurSel());
+	szWorksheet.AppendFormat("%d%d%d%d", ManTypeID, WalkTypeID, FactorTypeID, TargetTypeID);
 	//AfxMessageBox(szWorksheet);
 
 	// 通过表名获取对应的表单
@@ -362,7 +368,8 @@ void CParamDialog::RefreshAttrTable()
 	if (!worksheet)	return;
 
 	CRange cells = GetTable(worksheet, rows, columns);
-	std::vector<std::vector<CString> > collection;
+
+	collection.clear();
 	for (long i = 0; i < rows; i++) {
 		m_attrTable.InsertItem(i, " ");
 		std::vector<CString> vec_item;
@@ -377,7 +384,7 @@ void CParamDialog::RefreshAttrTable()
 	}
 }
 
-void CParamDialog::OnMetaTypeSelectChanged()
+void CParamDialog::OnFactorTypeSelectChanged()
 {
 	RefreshAttrTable();
 }

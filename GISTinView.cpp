@@ -666,6 +666,13 @@ CGISTinView::CGISTinView()
 
 	m_DisplayResultPath = true;
 
+	const double default_resistance = 1.0; // 默认阻抗值为1.0
+	const double default_slope_rate = 1.0; // 坡度衰减率默认为1.0
+	for (int i = 0; i < MAX_COLOR_NUM; i++) {
+		costTable.push_back(make_pair(i, default_resistance));
+		slopeTable.push_back(make_pair(i, default_slope_rate));
+	}
+
 }
 
 CGISTinView::~CGISTinView()
@@ -3427,10 +3434,61 @@ void CGISTinView::OnDisplayPath()
 	RefreshScreen();
 }
 
-
 void CGISTinView::OnSetting()
 {
 	// TODO: 在此添加命令处理程序代码
 	CParamDialog paradlg;
-	paradlg.DoModal();
+	if (IDOK == paradlg.DoModal()) {
+		std::map<CString, long> sheet = paradlg.mapWorksheet;
+		int man_id = paradlg.ManTypeID;
+		int walk_id = paradlg.WalkTypeID;
+		int factor_id = paradlg.FactorTypeID;
+		int target_id = paradlg.TargetTypeID;
+
+		std::vector<std::vector<CString> > collection = paradlg.collection;
+		TableConvertion(collection, target_id); // vector<CString>转为vector<pair<int, double> >;
+		ChangeDelaunayEdgeResistance();
+	}	
+}
+
+void CGISTinView::ChangeDelaunayEdgeResistance()
+{
+	for (int i = 0; i < m_nDeEdgeCount; i++) {
+		int idx = m_pDelaunayEdge[i]->resistance;
+		m_pDelaunayEdge[i]->resistance = costTable[idx].second;
+	}
+}
+
+void CGISTinView::TableConvertion(std::vector<std::vector<CString> >& collection, int target_id) {
+	if (target_id == 0) 
+	{
+		std::vector<CString> header = *collection.begin();
+		//collection.erase(collection.begin());
+
+		//// 寻找ID字段的索引
+		//int id = 0;
+		//for (int j = 0; j < header.size(); j++) {
+		//	if (header[j].Compare("ID") == 0) {
+		//		break;
+		//	}
+		//	id++;
+		//}
+		//// 未找到ID字段
+		//if (id == header.size()) {
+		//	AfxMessageBox("未找到ID手段");
+		//	return; 
+		//}
+
+		// 默认ID为第一字段，Value 字段为最后一个字段
+		int id = 0, val = header.size() - 1;
+		for (int i = 1; i < collection.size(); i++) {
+			std::vector<CString> item = collection[i];
+			int first = atoi(item[id].GetBuffer());
+			costTable[first].second = atof(item[val].GetBuffer());
+		}
+	}
+	else if (target_id == 1) 
+	{
+
+	}
 }

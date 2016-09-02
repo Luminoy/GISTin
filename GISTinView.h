@@ -299,6 +299,8 @@ public:
 	afx_msg void OnSaveLine();
 	afx_msg void OnDisplayPath();
 	afx_msg void OnSetting();
+	void ChangeDelaunayEdgeResistance();
+	void TableConvertion(std::vector<std::vector<CString>>& collection, int target_id);
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

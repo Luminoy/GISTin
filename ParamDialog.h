@@ -44,10 +44,16 @@ public:
 	CListCtrl          m_attrTable;
 	CComboBox          m_manType;
 	CComboBox          m_walkType;
+	CComboBox          m_factorType;
+	CComboBox          m_targetType;
 //	CListBox           m_metaType;
 	CMFCEditBrowseCtrl m_fileBrowser;
-	CComboBox          m_targetType;
-
+	
+	int                ManTypeID;
+	int                WalkTypeID;
+	int                TargetTypeID;
+	int                FactorTypeID;
+	std::vector<std::vector<CString> > collection;
 	// behaviors
 	void OnEnChangeFilebrowse();
 	void SetGroupBoxStatus(BOOL bFlag = 1);
@@ -72,11 +78,11 @@ public:
 	CString       m_strText;
 	std::map<CString, long> mapWorksheet;
 	void RefreshAttrTable();
-	afx_msg void OnMetaTypeSelectChanged();
+	afx_msg void OnFactorTypeSelectChanged();
 	afx_msg void OnManTypeSelectChanged();
 	afx_msg void OnWalkTypeSelectChanged();
-//	virtual INT_PTR DoModal();
-	
-	CComboBox m_factorType;
 	afx_msg void OnTargetTypeSelectChanged();
+//	virtual INT_PTR DoModal();
+
+
 };
