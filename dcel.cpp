@@ -12,4 +12,5 @@ DCEL::DCEL(void)
     e[1].eNext = &(e[0]);
     visited = false;
 	resistance = -1;
+	slope = 1.0;
 }

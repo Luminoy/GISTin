@@ -37,13 +37,15 @@ void CParamDialog::DoDataExchange(CDataExchange* pDX)
 	//  DDX_Control(pDX, IDC_FACTOR_TYPE, m_metaType);
 	DDX_Control(pDX, IDC_TARGET_TYPE, m_targetType);
 	DDX_Control(pDX, IDC_FILEBROWSE, m_fileBrowser);
-	DDX_Control(pDX, IDC_FACTOR_TYPE, m_factorType);
+	//DDX_Control(pDX, IDC_FACTOR_TYPE, m_factorType);
+	//DDX_Control(pDX, IDC_LIST2, m_surfaceType);
+	DDX_Control(pDX, IDC_SURFACE_TYPE, m_surfaceType);
 }
 
 
 BEGIN_MESSAGE_MAP(CParamDialog, CDialog)
 	ON_EN_CHANGE(IDC_FILEBROWSE, &CParamDialog::OnEnChangeFilebrowse)
-	ON_CBN_SELCHANGE(IDC_FACTOR_TYPE, &CParamDialog::OnFactorTypeSelectChanged)
+	ON_CBN_SELCHANGE(IDC_SURFACE_TYPE, &CParamDialog::OnFactorTypeSelectChanged)
 	ON_CBN_SELCHANGE(IDC_MAN_TYPE, &CParamDialog::OnManTypeSelectChanged)
 	ON_CBN_SELCHANGE(IDC_TARGET_TYPE, &CParamDialog::OnTargetTypeSelectChanged)
 	ON_CBN_SELCHANGE(IDC_WALK_TYPE, &CParamDialog::OnWalkTypeSelectChanged)
@@ -149,7 +151,7 @@ void CParamDialog::OnEnChangeFilebrowse()
 		m_walkType.SetCurSel(0);
 
 
-		sheet = GetWorksheet("因子类型");
+		sheet = GetWorksheet("地表类型");
 		cells = GetTable(sheet, rows, columns);
 
 		j = 1; // 第二列
@@ -157,11 +159,11 @@ void CParamDialog::OnEnChangeFilebrowse()
 			CRange cell;
 			cell.AttachDispatch(cells.get_Item(COleVariant(i + 1), COleVariant(j + 1)).pdispVal, TRUE); // 从1开始的索引
 			VARIANT item = cell.get_Text();
-			m_factorType.InsertString(i, CString(item.bstrVal));
+			m_surfaceType.InsertString(i, CString(item.bstrVal));
 		}
 		sheet.DetachDispatch();
 		cells.DetachDispatch();
-		m_factorType.SetCurSel(0);
+		m_surfaceType.SetCurSel(0);
 
 		sheet = GetWorksheet("通行目标");
 		cells = GetTable(sheet, rows, columns);
@@ -205,7 +207,7 @@ void CParamDialog::SetGroupBoxStatus(BOOL bFlag)
 {
 	GetDlgItem(IDC_MAN_TYPE)->EnableWindow(bFlag);
 	GetDlgItem(IDC_WALK_TYPE)->EnableWindow(bFlag);
-	GetDlgItem(IDC_FACTOR_TYPE)->EnableWindow(bFlag);
+	GetDlgItem(IDC_SURFACE_TYPE)->EnableWindow(bFlag);
 	GetDlgItem(IDC_TARGET_TYPE)->EnableWindow(bFlag);
 	GetDlgItem(IDC_TABLE)->EnableWindow(bFlag);
 }
@@ -352,15 +354,18 @@ void CParamDialog::RefreshAttrTable()
 {
 	ManTypeID = m_manType.GetCurSel();
 	WalkTypeID = m_walkType.GetCurSel();
-	FactorTypeID = m_factorType.GetCurSel();
+	SurfaceTypeID = m_surfaceType.GetCurSel();
 	TargetTypeID = m_targetType.GetCurSel();
 
 	// 获取对应的表名
 	CString szWorksheet;
-	szWorksheet.AppendFormat("%d%d%d%d", ManTypeID, WalkTypeID, FactorTypeID, TargetTypeID);
+	szWorksheet.AppendFormat("%d%d%d%d", ManTypeID, WalkTypeID, SurfaceTypeID, TargetTypeID);
 	//AfxMessageBox(szWorksheet);
 
 	// 通过表名获取对应的表单
+	
+
+
 	long rows, columns;
 	CWorksheet worksheet = GetWorksheet(szWorksheet);
 
@@ -412,3 +417,33 @@ void CParamDialog::OnTargetTypeSelectChanged()
 //}
 
 
+
+
+void CParamDialog::OnOK()
+{
+	CRange cell, cells;
+	CWorksheet worksheet;
+	for (int k = 0; k < m_surfaceType.GetCount(); k++) {
+		// 获取对应的表名
+		CString szWorksheet;
+		szWorksheet.AppendFormat("%d%d%d%d", ManTypeID, WalkTypeID, k, TargetTypeID);
+
+		worksheet = GetWorksheet(szWorksheet);
+
+		long rows, columns;
+		cells = GetTable(worksheet, rows, columns);
+
+		collection.clear();
+		for (long i = 0; i < rows; i++) {
+			std::vector<CString> vec_item;
+			for (long j = 0; j < columns; j++) {
+				cell.AttachDispatch(cells.get_Item(COleVariant(i + 1), COleVariant(j + 1)).pdispVal, TRUE); // 从1开始的索引
+				VARIANT item = cell.get_Text();
+				vec_item.push_back(CString(item.bstrVal));
+			}
+			collection.push_back(vec_item);
+		}
+		full_table.push_back(make_pair(k, collection));
+	}
+	CDialog::OnOK();
+}

@@ -25,8 +25,7 @@
 #define IDC_TABLE                       1010
 #define IDC_FILEBROWSE                  1013
 #define IDC_TARGET_TYPE                 1015
-#define IDC_COMBO2                      1017
-#define IDC_FACTOR_TYPE                 1017
+#define IDC_SURFACE_TYPE                1018
 #define ID_LOAD_POINT_FILE              32771
 #define ID_LOAD_LINE_FILE               32772
 #define ID_GLOBE                        32773
@@ -82,7 +81,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        147
 #define _APS_NEXT_COMMAND_VALUE         32841
-#define _APS_NEXT_CONTROL_VALUE         1018
+#define _APS_NEXT_CONTROL_VALUE         1019
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -50,6 +50,14 @@
 #include <iostream>
 using namespace std;
 
+// 为pair<int, int>, double 的键值对写的比较函数
+struct map_comp {
+	typedef pair<int, int> value_type;
+	bool operator()(const value_type& lhs, const value_type& rhs) {
+		return (lhs.first < rhs.first) || ((lhs.first == rhs.first) && (lhs.second < rhs.second));
+	}
+};
+
 // 为Point2d 写的两个函数，以供unordered_map使用
 struct hash_func {
 	size_t operator() (const Point2d& PNT2d) const
@@ -124,8 +132,7 @@ private:
    bool m_DisplayResultPath;
    map<double, int> m_ColorRefTable;          // 栅格类型id码对应的颜色
 
-   vector<pair<int, double> > costTable;      // int与栅格地表类型id码相对应
-   vector<pair<int, double> > slopeTable;     // int与坡度范围类型id码相对应
+   map<pair<int, int>, double, map_comp> surf_slopeTable;      // 栅格地表类型id码与坡度范围类型id码为key, double为value
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -300,7 +307,8 @@ public:
 	afx_msg void OnDisplayPath();
 	afx_msg void OnSetting();
 	void ChangeDelaunayEdgeResistance();
-	void TableConvertion(std::vector<std::vector<CString>>& collection, int target_id);
+	void TableConvertion(std::vector<pair<int, std::vector<std::vector<CString> > > >& collection);
+	double find_value_by_int_int(map<pair<int, int>, double, map_comp> &surf_slope_table, int surf, int slop);
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

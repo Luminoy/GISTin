@@ -7,6 +7,7 @@
 #include <map>
 #include <vector>
 #include <utility>
+using namespace std;
 
 // Excel¶ÁÐ´ÒÀÀµÍ·ÎÄ¼þ
 #include "CApplication.h"
@@ -44,16 +45,18 @@ public:
 	CListCtrl          m_attrTable;
 	CComboBox          m_manType;
 	CComboBox          m_walkType;
-	CComboBox          m_factorType;
+	//CComboBox          m_factorType;
 	CComboBox          m_targetType;
 //	CListBox           m_metaType;
+//	CListBox           m_surfaceType;
 	CMFCEditBrowseCtrl m_fileBrowser;
 	
 	int                ManTypeID;
 	int                WalkTypeID;
 	int                TargetTypeID;
-	int                FactorTypeID;
+	int                SurfaceTypeID;
 	std::vector<std::vector<CString> > collection;
+	std::vector< std::pair<int, std::vector<std::vector<CString> > > > full_table;
 	// behaviors
 	void OnEnChangeFilebrowse();
 	void SetGroupBoxStatus(BOOL bFlag = 1);
@@ -83,6 +86,6 @@ public:
 	afx_msg void OnWalkTypeSelectChanged();
 	afx_msg void OnTargetTypeSelectChanged();
 //	virtual INT_PTR DoModal();
-
-
+	CListBox m_surfaceType;
+	virtual void OnOK();
 };

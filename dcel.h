@@ -9,4 +9,5 @@ public:
     Edge e[2];
     bool visited;
 	double resistance;  // Í¨ÐÐ×èÁ¦
+	double slope;
 };
