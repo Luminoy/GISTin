@@ -1740,6 +1740,13 @@ void CGISTinView::OnGenerateDelaunay()
 	RefreshScreen();	
 }
 
+void CGISTinView::CalculateEdgeLength(DCEL* pEdge)
+{
+	if (!pEdge)	return;
+	int dx = pEdge->e[0].oData->x - pEdge->e[1].oData->x;
+	int dy = pEdge->e[0].oData->y - pEdge->e[1].oData->y;
+	pEdge->length = sqrt(dx * dx + dy * dy) / 1000.; // 单位km
+}
 void CGISTinView::OnParallelGenerateTin() 
 {
 	//1.初始化栅格场
@@ -2182,7 +2189,9 @@ void CGISTinView::PointLineTopoConstruct() {
 	pTopoPointCollection.Initialize(pointNumber);
 	for (int i = 0; i < m_nDeEdgeCount; i++)
 	{
+		
 		DCEL *pdecl = m_pDelaunayEdge[i];
+		CalculateEdgeLength(pdecl); //计算边的欧式长度
 		int idx1 = mHashTable[*(pdecl->e[0].oData)]; //已解决//哈希函数有点问题
 		int idx2 = mHashTable[*(pdecl->e[1].oData)];
 		//int idx1 = (mHashTable.find(*(pdecl->e[0].oData)))->second; 
@@ -2314,7 +2323,7 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 		//	resistance = 0;
 		//}
 
-		pEdges[i]->resistance = resistance;  //定义的是障碍栅格，因此值为Nodata的像元是可通行的！！
+		pEdges[i]->type = resistance;  //定义的是障碍栅格，因此值为Nodata的像元是可通行的！！
 	}
 }
 
@@ -2405,13 +2414,13 @@ void CGISTinView::CreateLinePath() {
 			long LID = CurrPoint.pConnectLineIDs[i];
 			DCEL *pLine = m_pDelaunayEdge[LID];
 			//控制哪些属性不可通行
-			if (pLine != NULL && (pLine->resistance < 3) && (pLine->resistance >= 0)) {//pLine->resistance != 3) || (pLine->resistance != 5)) { 
+			if (pLine != NULL) { // && (pLine->resistance < 3) && (pLine->resistance >= 0)) {//pLine->resistance != 3) || (pLine->resistance != 5)) { 
 				Point2d P0(pLine->e[0].oData->x, pLine->e[0].oData->y);
 				Point2d P1(pLine->e[1].oData->x, pLine->e[1].oData->y);
 				int idx1 = mHashTable[P0];
 				int idx2 = mHashTable[P1];
 				if (!PointData[idx1].visited) {
-					double dis = sqrt(pow(PointData[idx1].x - PointData[PID].x, 2) + pow(PointData[idx1].y - PointData[PID].y, 2));
+					double dis = pLine->length * pLine->resistance;  // todo:
 					if (PointData[idx1].parent == -1) {
 						PointData[idx1].parent = PID;
 						PointData[idx1].accu = dis + PointData[PID].accu;
@@ -2423,7 +2432,7 @@ void CGISTinView::CreateLinePath() {
 					}
 				}
 				if (!PointData[idx2].visited) {
-					double dis = sqrt(pow(PointData[idx2].x - PointData[PID].x, 2) + pow(PointData[idx2].y - PointData[PID].y, 2));
+					double dis = pLine->length * pLine->resistance;
 					if (PointData[idx2].parent == -1) {
 						PointData[idx2].parent = PID;
 						PointData[idx2].accu = dis + PointData[PID].accu;
@@ -3455,11 +3464,32 @@ void CGISTinView::OnSetting()
 	}	
 }
 
+double CGISTinView::CalculateEdgeSlopeByXYZ(DCEL *pEdge)
+{
+	double dz = pEdge->e[0].oData->z - pEdge->e[1].oData->z;
+	double dx = pEdge->e[0].oData->x - pEdge->e[1].oData->x;
+	double dy = pEdge->e[0].oData->y - pEdge->e[1].oData->y;
+	double slope = atan2f(abs(dz), sqrt(dx * dx + dy * dy));
+	return slope;
+}
+
+int ReclassOfSlopeByTable(double slope, vector<pair<double, int> >& slopeTable)
+{
+	if (!slopeTable.size())	return 0;
+	int k = 1;
+	for (; k < slopeTable.size(); ++k) {
+		if (slope < slopeTable[k].first)
+			break;
+	}
+	return slopeTable[k - 1].second;
+}
+
 void CGISTinView::ChangeDelaunayEdgeResistance()
 {
 	for (int i = 0; i < m_nDeEdgeCount; i++) {
-		int surf = m_pDelaunayEdge[i]->resistance;
-		int slop = 0;//m_pDelaunayEdge[i]->slope;
+		int surf = m_pDelaunayEdge[i]->type;
+		m_pDelaunayEdge[i]->slope = CalculateEdgeSlopeByXYZ(m_pDelaunayEdge[i]);
+		int slop = ReclassOfSlopeByTable(m_pDelaunayEdge[i]->slope, slope_IdTable);
 		m_pDelaunayEdge[i]->resistance = find_value_by_int_int(surf_slopeTable, surf, slop);
 	}
 }

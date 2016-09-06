@@ -133,6 +133,7 @@ private:
    map<double, int> m_ColorRefTable;          // 栅格类型id码对应的颜色
 
    map<pair<int, int>, double, map_comp> surf_slopeTable;      // 栅格地表类型id码与坡度范围类型id码为key, double为value
+   vector<pair<double, int> > slope_IdTable;
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -278,7 +279,8 @@ protected:
 	afx_msg void OnDisplayBinaryTree();
 	afx_msg void OnUpdateDisplayBinaryTree(CCmdUI* pCmdUI);
 	afx_msg void OnUpdateDisplayGrid(CCmdUI* pCmdUI);
-	afx_msg void OnParallelGenerateTin();
+	afx_msg void CalculateEdgeLength(DCEL* pEdge);
+	void OnParallelGenerateTin();
 	afx_msg void OnDisplayGenerateDelaunay();
 	afx_msg void OnUpdateDisplayGenerateDelaunay(CCmdUI* pCmdUI);
 	afx_msg void OnDivideGenerateTin();
@@ -306,6 +308,7 @@ public:
 	afx_msg void OnSaveLine();
 	afx_msg void OnDisplayPath();
 	afx_msg void OnSetting();
+	double CalculateEdgeSlopeByXYZ(DCEL * pEdge);
 	void ChangeDelaunayEdgeResistance();
 	void TableConvertion(std::vector<pair<int, std::vector<std::vector<CString> > > >& collection);
 	double find_value_by_int_int(map<pair<int, int>, double, map_comp> &surf_slope_table, int surf, int slop);
