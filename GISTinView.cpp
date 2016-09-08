@@ -63,6 +63,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_SAVE_LINE, &CGISTinView::OnSaveLine)
 	ON_COMMAND(ID_DISPLAY_PATH, &CGISTinView::OnDisplayPath)
 	ON_COMMAND(ID_SETTING, &CGISTinView::OnSetting)
+	ON_COMMAND(ID_DEM_Z_VALUE, &CGISTinView::OnDemZValue)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -449,21 +450,41 @@ void CGISTinView::SaveShapeFile(const char *filename, DCEL** pData, int count) {
 	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
 	OGRDataSource *poDS = poDriver->CreateDataSource(filename);
 	OGRLayer *poLayer = poDS->CreateLayer(filename, NULL, wkbLineString);
+
 	OGRFieldDefn ogrField("resistance", OFTReal);
 	ogrField.SetWidth(10);
+	ogrField.SetPrecision(3);
 	poLayer->CreateField(&ogrField);
+
+	OGRFieldDefn ogrField2("type", OFTInteger);
+	ogrField2.SetWidth(10);
+	poLayer->CreateField(&ogrField2);
+
+	OGRFieldDefn ogrField3("length", OFTReal);
+	ogrField3.SetWidth(10);
+	ogrField3.SetPrecision(3);
+	poLayer->CreateField(&ogrField3);
+
+	OGRFieldDefn ogrField4("slope", OFTReal);
+	ogrField4.SetWidth(10);
+	ogrField4.SetPrecision(3);
+	poLayer->CreateField(&ogrField4);
 
 	for (int i = 0; i < count; ++i) {
 		OGRFeature *poFeature = OGRFeature::CreateFeature(poLayer->GetLayerDefn());
 		poFeature->SetField("resistance", pData[i]->resistance);
+		poFeature->SetField("type", pData[i]->type);
+		poFeature->SetField("length", pData[i]->length);
+		poFeature->SetField("slope", pData[i]->slope);
+
 		OGRLineString pLine;
 		OGRPoint P0, P1;
 
-		P0.setX(pData[i]->e[0].oData->x + bias_x);
-		P0.setY(pData[i]->e[0].oData->y + bias_y);
+		P0.setX(pData[i]->e[0].oData->x + fTinMinX);
+		P0.setY(pData[i]->e[0].oData->y + fTinMinY);
 
-		P1.setX(pData[i]->e[1].oData->x + bias_x);
-		P1.setY(pData[i]->e[1].oData->y + bias_y);
+		P1.setX(pData[i]->e[1].oData->x + fTinMinX);
+		P1.setY(pData[i]->e[1].oData->y + fTinMinY);
 
 		pLine.setNumPoints(2);
 		pLine.setPoint(0, &P0);
@@ -647,9 +668,10 @@ CGISTinView::CGISTinView()
 	pPathPoints = NULL;
 	nPathPointNum = 0;
 	nStartPointID = nEndPointID = -1;
-	pDataPackage = NULL;
+	pSurfaceTypePackage = NULL;
+	pDEMPackage = NULL;
 
-	bias_x = bias_y = 0;
+	fTinMinX = fTinMinY = 0;
 	for (int i = 0; i < MAX_COLOR_NUM; i++) {
 		//colors[i] = RGB(rand() % 255, (rand() + i) % 255, (rand() + 2 * i) % 255);
 		MyPen[i].CreatePen(PS_SOLID, 1, colors[i]);
@@ -1745,8 +1767,9 @@ void CGISTinView::CalculateEdgeLength(DCEL* pEdge)
 	if (!pEdge)	return;
 	int dx = pEdge->e[0].oData->x - pEdge->e[1].oData->x;
 	int dy = pEdge->e[0].oData->y - pEdge->e[1].oData->y;
-	pEdge->length = sqrt(dx * dx + dy * dy) / 1000.; // 单位km
+	pEdge->length = sqrt(dx * dx + dy * dy); // 单位km
 }
+
 void CGISTinView::OnParallelGenerateTin() 
 {
 	//1.初始化栅格场
@@ -2096,14 +2119,14 @@ void CGISTinView::OnShapefileOpen()
 	//CalPointDistance(PNTSet);
 	pointNumber = PNTSet.size();
 
-	bias_x = PNTSet[0].x;
-	bias_y = PNTSet[0].y;
+	fTinMinX = PNTSet[0].x;
+	fTinMinY = PNTSet[0].y;
 	for (int i = 1; i < pointNumber; i++) {
-		if (bias_x > PNTSet[i].x) {
-			bias_x = PNTSet[i].x;
+		if (fTinMinX > PNTSet[i].x) {
+			fTinMinX = PNTSet[i].x;
 		}
-		if (bias_y > PNTSet[i].y) {
-			bias_y = PNTSet[i].y;
+		if (fTinMinY > PNTSet[i].y) {
+			fTinMinY = PNTSet[i].y;
 		}
 	}
 
@@ -2111,8 +2134,8 @@ void CGISTinView::OnShapefileOpen()
 	for (int i = 0; i<pointNumber; i++)
 	{
 		/// 只保留三位小数才不会出错！！后人谨记！！
-		Point[i].x = long((PNTSet[i].x - bias_x) * 1000) / 1000.0;
-		Point[i].y = long((PNTSet[i].y - bias_y) * 1000) / 1000.0;
+		Point[i].x = long((PNTSet[i].x - fTinMinX) * 1000) / 1000.0;
+		Point[i].y = long((PNTSet[i].y - fTinMinY) * 1000) / 1000.0;
 		Point[i].ID = i + 1;
 	}
 
@@ -2271,8 +2294,8 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 		//vector<int> resist;
 		//resist.resize(2 * delta + 1);
 		int *resist = new int[(2 * delta + 1) * (2 * delta + 1)];
-		int mr = ((pEdges[i]->e[0].oData->y + pEdges[i]->e[1].oData->y) / 2 + bias_y - UpperBound) / PixelHeight;
-		int mc = ((pEdges[i]->e[0].oData->x + pEdges[i]->e[1].oData->x) / 2 + bias_x - LeftBound) / PixelWidth;
+		int mr = ((pEdges[i]->e[0].oData->y + pEdges[i]->e[1].oData->y) / 2 + fTinMinY - UpperBound) / PixelHeight;
+		int mc = ((pEdges[i]->e[0].oData->x + pEdges[i]->e[1].oData->x) / 2 + fTinMinX - LeftBound) / PixelWidth;
 		
 		for (int k = -delta; k <= delta; k++) {
 			for (int m = -delta; m <= delta; m++) {
@@ -2554,30 +2577,30 @@ void CGISTinView::OnRasterOpen()
 	else
 		return;
 
-    pDataPackage = ReadRasterData(TheFilePath);
+	pSurfaceTypePackage = ReadRasterData(TheFilePath);
 	
-	switch (pDataPackage->nDataType)
+	switch (pSurfaceTypePackage->nDataType)
 	{
 	case 1:
-		AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 2:
-		AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 3:
-		AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 4:
-		AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 5:
-		AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 6:
-		AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	default:
-		AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	}
 
@@ -2587,30 +2610,99 @@ void CGISTinView::OnRasterOpen()
 }
 
 
-void CGISTinView::OnPathSmooth()
+template<typename DT>
+void CGISTinView::UpdateTinZValueByDEM(DCEL **pEdges, int count, MyDataPackage *pPackage) {
+	int nWidth = pPackage->nWidth;
+	int nHeight = pPackage->nHeight;
+	float UpperBound = pPackage->fUpperBound;
+	float LeftBound = pPackage->fLeftBound;
+	float PixelWidth = pPackage->fPixelWidth;
+	float PixelHeight = pPackage->fPixelHeight;
+
+	DT *pData = static_cast<DT *>(pPackage->pData);
+	DT NoDataValue = static_cast<DT>(pPackage->dNoDataValue);
+
+	for (int i = 0; i < count; i++) {
+		int r0 = (pEdges[i]->e[0].oData->y + fTinMinY - UpperBound) / PixelHeight;
+		int c0 = (pEdges[i]->e[0].oData->x + fTinMinX - LeftBound) / PixelWidth;
+		pEdges[i]->e[0].oData->z = pData[r0 * nWidth + c0];
+
+		int r1 = (pEdges[i]->e[1].oData->y + fTinMinY - UpperBound) / PixelHeight;
+		int c1 = (pEdges[i]->e[1].oData->x + fTinMinX - LeftBound) / PixelWidth;
+		pEdges[i]->e[1].oData->z = pData[r1 * nWidth + c1];
+
+		pEdges[i]->slope = CalculateEdgeSlopeByXYZ(pEdges[i]);
+	}
+}
+
+
+void CGISTinView::OnDemZValue()
 {
-	switch (pDataPackage->nDataType)
+	CString TheFilePath;
+	CFileDialog fd(TRUE, NULL, "w001001x.adf", OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.adf|*.adf|", AfxGetMainWnd());
+	if (fd.DoModal() == IDOK) {
+		TheFilePath = fd.GetFolderPath();
+	}
+	else
+		return;
+
+	pDEMPackage = ReadRasterData(TheFilePath);
+
+	switch (pDEMPackage->nDataType)
 	{
 	case 1:
-		PathOptimize<DT_8U>(pPathPoints, nPathPointNum, pDataPackage);
+		UpdateTinZValueByDEM<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
 		break;
 	case 2:
-		PathOptimize<DT_16U>(pPathPoints, nPathPointNum, pDataPackage);
+		UpdateTinZValueByDEM<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
 		break;
 	case 3:
-		PathOptimize<DT_16S>(pPathPoints, nPathPointNum, pDataPackage);
+		UpdateTinZValueByDEM<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
 		break;
 	case 4:
-		PathOptimize<DT_32U>(pPathPoints, nPathPointNum, pDataPackage);
+		UpdateTinZValueByDEM<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
 		break;
 	case 5:
-		PathOptimize<DT_32S>(pPathPoints, nPathPointNum, pDataPackage);
+		UpdateTinZValueByDEM<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
 		break;
 	case 6:
-		PathOptimize<DT_32F>(pPathPoints, nPathPointNum, pDataPackage);
+		UpdateTinZValueByDEM<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
 		break;
 	default:
-		PathOptimize<DT_64F>(pPathPoints, nPathPointNum, pDataPackage);
+		UpdateTinZValueByDEM<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+		break;
+	}
+
+	CRect Rect;
+	GetClientRect(&Rect);
+	InvalidateRect(&Rect);
+
+}
+
+void CGISTinView::OnPathSmooth()
+{
+	switch (pSurfaceTypePackage->nDataType)
+	{
+	case 1:
+		PathOptimize<DT_8U>(pPathPoints, nPathPointNum, pSurfaceTypePackage);
+		break;
+	case 2:
+		PathOptimize<DT_16U>(pPathPoints, nPathPointNum, pSurfaceTypePackage);
+		break;
+	case 3:
+		PathOptimize<DT_16S>(pPathPoints, nPathPointNum, pSurfaceTypePackage);
+		break;
+	case 4:
+		PathOptimize<DT_32U>(pPathPoints, nPathPointNum, pSurfaceTypePackage);
+		break;
+	case 5:
+		PathOptimize<DT_32S>(pPathPoints, nPathPointNum, pSurfaceTypePackage);
+		break;
+	case 6:
+		PathOptimize<DT_32F>(pPathPoints, nPathPointNum, pSurfaceTypePackage);
+		break;
+	default:
+		PathOptimize<DT_64F>(pPathPoints, nPathPointNum, pSurfaceTypePackage);
 		break;
 	}
 
@@ -3347,28 +3439,28 @@ void CGISTinView::OnPointDensify()
 
 	OnGenerateDelaunay();
 
-	switch (pDataPackage->nDataType)
+	switch (pSurfaceTypePackage->nDataType)
 	{
 	case 1:
-		AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 2:
-		AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 3:
-		AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 4:
-		AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 5:
-		AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	case 6:
-		AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	default:
-		AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pDataPackage);
+		AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
 		break;
 	}
 	OnCreatePath();
@@ -3459,6 +3551,7 @@ void CGISTinView::OnSetting()
 
 		std::map<pair<int, int>, double> surface_slope_table;
 		std::vector<pair<int, std::vector<std::vector<CString> > > > collection = paradlg.full_table;
+		
 		TableConvertion(collection); // vector<CString>转为vector<pair<int, double> >;
 		ChangeDelaunayEdgeResistance();
 	}	
@@ -3470,7 +3563,7 @@ double CGISTinView::CalculateEdgeSlopeByXYZ(DCEL *pEdge)
 	double dx = pEdge->e[0].oData->x - pEdge->e[1].oData->x;
 	double dy = pEdge->e[0].oData->y - pEdge->e[1].oData->y;
 	double slope = atan2f(abs(dz), sqrt(dx * dx + dy * dy));
-	return slope;
+	return slope * 180 / 3.1415926;
 }
 
 int ReclassOfSlopeByTable(double slope, vector<pair<double, int> >& slopeTable)
@@ -3504,7 +3597,7 @@ double CGISTinView::find_value_by_int_int(map<pair<int, int>, double, map_comp> 
 }
 
 void CGISTinView::TableConvertion(std::vector<pair<int, std::vector<std::vector<CString> > > >& collection) {
-	
+	if (!collection.size())	return;
 	for (int i = 0; i < collection.size(); i++) {
 		int first = collection[i].first;
 		std::vector<std::vector<CString> >& vecTmp = collection[i].second;
@@ -3516,8 +3609,13 @@ void CGISTinView::TableConvertion(std::vector<pair<int, std::vector<std::vector<
 			surf_slopeTable[make_pair(first, second)] = value;   //用[]运算符存储才能覆盖原数据，insert没法覆盖
 		}
 	}
-
-	
+	slope_IdTable.clear();
+	std::vector<std::vector<CString> >& vecItem = collection[0].second;
+	for (int i = 1; i < vecItem.size(); i++) {
+		int id = atoi(vecItem[i][0]);
+		double key = atof(vecItem[i][1]);
+		slope_IdTable.push_back(make_pair(key, id));
+	}
 	//// 寻找ID字段的索引
 	//int id = 0;
 	//for (int j = 0; j < header.size(); j++) {
@@ -3532,3 +3630,5 @@ void CGISTinView::TableConvertion(std::vector<pair<int, std::vector<std::vector<
 	//	return; 
 	//}
 }
+
+

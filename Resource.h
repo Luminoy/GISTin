@@ -74,13 +74,16 @@
 #define ID_DISPLAY_PATH                 32838
 #define ID_32839                        32839
 #define ID_SETTING                      32840
+#define ID_32841                        32841
+#define ID_DEM_ZVALUE                   32842
+#define ID_DEM_Z_VALUE                  32843
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        147
-#define _APS_NEXT_COMMAND_VALUE         32841
+#define _APS_NEXT_COMMAND_VALUE         32844
 #define _APS_NEXT_CONTROL_VALUE         1019
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

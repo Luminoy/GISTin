@@ -142,7 +142,8 @@ BEGIN
     END
     POPUP "栅格数据"
     BEGIN
-        MENUITEM "打开",                          ID_RASTER_OPEN
+        MENUITEM "地表类型栅格",                      ID_RASTER_OPEN
+        MENUITEM "DEM更新z值",                     ID_DEM_Z_VALUE
     END
     POPUP "设置"
     BEGIN

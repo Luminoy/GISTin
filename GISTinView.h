@@ -126,8 +126,8 @@ private:
    TopoPointCollection pTopoPointCollection;//点线的拓扑信息
    unordered_map<Point2d, int, hash_func, hash_cmp> mHashTable;
    vector<pair<vector<PNT>, double> > m_vecInputSHPGroups;
-   MyDataPackage *pDataPackage;
-   double bias_x, bias_y;
+   MyDataPackage *pSurfaceTypePackage, *pDEMPackage;
+   double fTinMinX, fTinMinY;
 
    bool m_DisplayResultPath;
    map<double, int> m_ColorRefTable;          // 栅格类型id码对应的颜色
@@ -166,6 +166,8 @@ public:
    int  ModifyPointData(int PID, PNT * pData);
    template<typename DT>
    void AssignEdgeAttribute(DCEL ** pEdges, int count, MyDataPackage *pPackage);
+   template<typename DT>
+   void UpdateTinZValueByDEM(DCEL **pEdges, int count, MyDataPackage* pPackage);
    void AssignEdgeAttribute(DCEL ** pEdges, const char * szFileName);
    void CreateLinePath();
    void AccuSort(vector<int>& vec, int left, int right);
@@ -312,6 +314,7 @@ public:
 	void ChangeDelaunayEdgeResistance();
 	void TableConvertion(std::vector<pair<int, std::vector<std::vector<CString> > > >& collection);
 	double find_value_by_int_int(map<pair<int, int>, double, map_comp> &surf_slope_table, int surf, int slop);
+	afx_msg void OnDemZValue();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp
