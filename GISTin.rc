@@ -132,8 +132,11 @@ BEGIN
         MENUITEM "打开",                          ID_SHAPEFILE_OPEN
         POPUP "保存"
         BEGIN
-            MENUITEM "点要素",                         ID_SAVE_POINT
-            MENUITEM "线要素",                         ID_SAVE_LINE
+            MENUITEM "三角网点集",                       ID_SAVE_POINT
+            MENUITEM "三角网边集",                       ID_SAVE_LINE
+            MENUITEM "起点",                          ID_START_PT
+            MENUITEM "终点",                          ID_END_PT
+            MENUITEM "结果路径",                        ID_RESULT_PATH
         END
         MENUITEM "建立拓扑关系",                      ID_TOPOCONSTRUCT
         MENUITEM "路径生成",                        ID_CREATEPATH

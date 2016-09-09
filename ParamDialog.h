@@ -19,6 +19,7 @@ using namespace std;
 #include "CWorksheets.h"
 #include "comutil.h"
 
+#pragma comment(lib, "comsupp.lib")
 // CParamDialog ¶Ô»°¿ò
 
 class CParamDialog : public CDialog

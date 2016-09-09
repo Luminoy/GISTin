@@ -64,6 +64,9 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_DISPLAY_PATH, &CGISTinView::OnDisplayPath)
 	ON_COMMAND(ID_SETTING, &CGISTinView::OnSetting)
 	ON_COMMAND(ID_DEM_Z_VALUE, &CGISTinView::OnDemZValue)
+	ON_COMMAND(ID_START_PT, &CGISTinView::OnStartPointSave)
+	ON_COMMAND(ID_END_PT, &CGISTinView::OnEndPointSave)
+	ON_COMMAND(ID_RESULT_PATH, &CGISTinView::OnResultPathSave)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -3554,7 +3557,8 @@ void CGISTinView::OnSetting()
 		
 		TableConvertion(collection); // vector<CString>转为vector<pair<int, double> >;
 		ChangeDelaunayEdgeResistance();
-	}	
+		RefreshScreen();
+	}
 }
 
 double CGISTinView::CalculateEdgeSlopeByXYZ(DCEL *pEdge)
@@ -3632,3 +3636,103 @@ void CGISTinView::TableConvertion(std::vector<pair<int, std::vector<std::vector<
 }
 
 
+
+
+void CGISTinView::OnStartPointSave()
+{
+	// 保存起点
+	if (nStartPointID < 0 || nStartPointID > pointNumber - 1) {
+		AfxMessageBox("未定义起点！");
+		return;
+	}
+	
+	CString  TheFileName;
+	CFileDialog  FileDlg(TRUE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+
+	if (FileDlg.DoModal() == IDOK)
+		TheFileName = FileDlg.GetPathName();
+	else
+		return;
+
+	SaveShapeFile(TheFileName, PointData + nStartPointID, 1);
+
+	AfxMessageBox("保存完毕！");
+}
+
+
+void CGISTinView::OnEndPointSave()
+{
+	// 保存终点
+	if (nEndPointID < 0 || nEndPointID > pointNumber - 1) {
+		AfxMessageBox("未定义终点！");
+		return;
+	}
+
+	CString  TheFileName;
+	CFileDialog  FileDlg(TRUE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+
+	if (FileDlg.DoModal() == IDOK)
+		TheFileName = FileDlg.GetPathName();
+	else
+		return;
+
+	SaveShapeFile(TheFileName, PointData + nEndPointID, 1);
+
+	AfxMessageBox("保存完毕！");
+}
+
+
+void CGISTinView::OnResultPathSave()
+{
+	// TODO: 保存结果路径
+	if (nPathPointNum <= 1) {
+		AfxMessageBox("未计算路径！");
+		return;
+	}
+
+	CString  TheFileName;
+	CFileDialog  FileDlg(TRUE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+
+	if (FileDlg.DoModal() == IDOK)
+		TheFileName = FileDlg.GetPathName();
+	else
+		return;
+
+	::OGRRegisterAll();
+	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
+	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
+	OGRDataSource *poDS = poDriver->CreateDataSource(TheFileName);
+	OGRLayer *poLayer = poDS->CreateLayer(TheFileName, NULL, wkbLineString);
+	OGRFieldDefn ogrField("NO", OFTInteger);
+	ogrField.SetWidth(10);
+	poLayer->CreateField(&ogrField);
+
+	for (int i = 0; i < nPathPointNum - 1; ++i) {
+		OGRFeature *poFeature = OGRFeature::CreateFeature(poLayer->GetLayerDefn());
+		OGRLineString pLine;
+		OGRPoint P0, P1;
+
+		P0.setX(pPathPoints[i].x + fTinMinX);
+		P0.setY(pPathPoints[i].y + fTinMinY);
+
+		P1.setX(pPathPoints[i + 1].x + fTinMinX);
+		P1.setY(pPathPoints[i + 1].y + fTinMinY);
+
+		pLine.setNumPoints(2);
+		pLine.setPoint(0, &P0);
+		pLine.setPoint(1, &P1);
+
+		poFeature->SetGeometry(&pLine);
+
+		if (poLayer->CreateFeature(poFeature) != OGRERR_NONE) {
+			AfxMessageBox("创建矢量数据出错！");
+			return;
+		}
+		OGRFeature::DestroyFeature(poFeature);
+	}
+
+	OGRDataSource::DestroyDataSource(poDS);
+	OGRCleanupAll();
+
+	AfxMessageBox("保存完毕！");
+}

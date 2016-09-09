@@ -53,7 +53,7 @@ using namespace std;
 // 为pair<int, int>, double 的键值对写的比较函数
 struct map_comp {
 	typedef pair<int, int> value_type;
-	bool operator()(const value_type& lhs, const value_type& rhs) {
+	bool operator()(const value_type& lhs, const value_type& rhs) const {
 		return (lhs.first < rhs.first) || ((lhs.first == rhs.first) && (lhs.second < rhs.second));
 	}
 };
@@ -315,6 +315,9 @@ public:
 	void TableConvertion(std::vector<pair<int, std::vector<std::vector<CString> > > >& collection);
 	double find_value_by_int_int(map<pair<int, int>, double, map_comp> &surf_slope_table, int surf, int slop);
 	afx_msg void OnDemZValue();
+	afx_msg void OnStartPointSave();
+	afx_msg void OnEndPointSave();
+	afx_msg void OnResultPathSave();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp
