@@ -10,14 +10,17 @@
 using namespace std;
 
 // Excel读写依赖头文件
-#include "CApplication.h"
-#include "CExcelFont.h"
-#include "CRange.h"
-#include "CWorkbook.h"
-#include "CWorkbooks.h"
-#include "CWorksheet.h"
-#include "CWorksheets.h"
-#include "comutil.h"
+//#include "CApplication.h"
+//#include "CExcelFont.h"
+//#include "CRange.h"
+//#include "CWorkbook.h"
+//#include "CWorkbooks.h"
+//#include "CWorksheet.h"
+//#include "CWorksheets.h"
+//#include "comutil.h"
+
+// 数据库连接支持
+#include "AdoDatabase.h"
 
 #pragma comment(lib, "comsupp.lib")
 // CParamDialog 对话框
@@ -46,10 +49,8 @@ public:
 	CListCtrl          m_attrTable;
 	CComboBox          m_manType;
 	CComboBox          m_walkType;
-	//CComboBox          m_factorType;
 	CComboBox          m_targetType;
-//	CListBox           m_metaType;
-//	CListBox           m_surfaceType;
+	CListBox           m_surfaceType;
 	CMFCEditBrowseCtrl m_fileBrowser;
 	
 	int                ManTypeID;
@@ -61,25 +62,12 @@ public:
 	// behaviors
 	void OnEnChangeFilebrowse();
 	void SetGroupBoxStatus(BOOL bFlag = 1);
-	CWorksheets OnReadExcelFile(CString strPathName);
-	CWorksheet  GetWorksheet(CString strWorksheetName);
-	void ReleaseExcelHandle(CString strPathName);
-	CRange GetTable(CWorksheet &sheet, long &nUsedRow, long &nUsedColumn);
-
-	//CString GetExcelDriver();
-	//BOOL ExcelRead(CString strPathName);
-	//BOOL ExcelRead2(CString strPathName);
 public:
 	//定义接口类变量 
 	// 
-	CApplication  m_oExcelApp;
-	CWorksheets   m_oWorkSheets;
-	CWorksheet    m_oWorkSheet;
-	CWorkbooks    m_oWorkBooks;
-	CWorkbook     m_oWorkBook;
-	CRange        m_oCurrRange;
-	LPDISPATCH    m_lpDisp;
+	CAdoDatabase m_database;
 	CString       m_strText;
+
 	std::map<CString, long> mapWorksheet;
 	void RefreshAttrTable();
 	afx_msg void OnFactorTypeSelectChanged();
@@ -87,6 +75,8 @@ public:
 	afx_msg void OnWalkTypeSelectChanged();
 	afx_msg void OnTargetTypeSelectChanged();
 //	virtual INT_PTR DoModal();
-	CListBox m_surfaceType;
+	
 	virtual void OnOK();
+	BOOL GetMicTableInfo(const CString & DatabasePath, vector<CString>& tableNames);
+	vector<vector<CString>> GetTableByName(CString tName);
 };

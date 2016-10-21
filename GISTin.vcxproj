@@ -140,6 +140,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AdoDatabase.cpp" />
     <ClCompile Include="BinaryTree.cpp" />
     <ClCompile Include="dcel.cpp" />
     <ClCompile Include="delaunaytriangulation.cpp" />
@@ -163,6 +164,7 @@
     <ResourceCompile Include="GISTin.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AdoDatabase.h" />
     <ClInclude Include="BinaryTree.h" />
     <ClInclude Include="CApplication.h" />
     <ClInclude Include="CExcelFont.h" />
