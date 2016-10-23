@@ -3547,12 +3547,12 @@ void CGISTinView::OnSetting()
 	// TODO: 在此添加命令处理程序代码
 	CParamDialog paradlg;
 	if (IDOK == paradlg.DoModal()) {
-		std::map<CString, long> sheet = paradlg.mapWorksheet;
+		//std::map<CString, long> sheet = paradlg.mapWorksheet;
 		int man_id = paradlg.ManTypeID;
 		int walk_id = paradlg.WalkTypeID;
 		int target_id = paradlg.TargetTypeID;
 
-		std::map<pair<int, int>, double> surface_slope_table;
+		//std::map<pair<int, int>, double> surface_slope_table;
 		std::vector<pair<int, std::vector<std::vector<CString> > > > collection = paradlg.full_table;
 		
 		TableConvertion(collection); // vector<CString>转为vector<pair<int, double> >;

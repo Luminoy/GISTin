@@ -19,6 +19,7 @@ CParamDialog::CParamDialog(CWnd* pParent /*=NULL*/)
 CParamDialog::~CParamDialog()
 {
 	if (!m_strText) return;
+	m_database.CloseDatabase();
 }
 
 //int CParamDialog::OnInitDialog() {
@@ -190,20 +191,20 @@ void CParamDialog::RefreshAttrTable()
 	//重新填入数据
 	vector<CString>& header = collection[0];
 	for (int k = 0; k < header.size(); k++) {
-		m_attrTable.InsertColumn(k, header[k], LVCFMT_CENTER, 80);
+		m_attrTable.InsertColumn(k, header[k], LVCFMT_LEFT, 80, k);
 	}
 
-	//collection.erase(collection.begin());
-	//int nRows = collection.size();
-	//for (long i = 0; i < nRows; i++) {
-	//	m_attrTable.InsertItem(i, _T(" "));
-	//	vector<CString>& record = collection[i];
-	//	vector<CString> vec_item;
-	//	int nCols = record.size();
-	//	for (long j = 0; j < nCols; j++) {
-	//		m_attrTable.SetItemText(i, j, record[j]);
-	//	}
-	//}
+	collection.erase(collection.begin());
+	int nRows = collection.size();
+	for (long i = 0; i < nRows; i++) {
+		m_attrTable.InsertItem(i, _T(" "));
+		vector<CString>& record = collection[i];
+		vector<CString> vec_item;
+		int nCols = record.size();
+		for (long j = 0; j < nCols; j++) {
+			m_attrTable.SetItemText(i, j, record[j]);
+		}
+	}
 	UpdateData();
 }
 
@@ -229,30 +230,17 @@ void CParamDialog::OnTargetTypeSelectChanged()
 
 void CParamDialog::OnOK()
 {
-	//CRange cell, cells;
-	//CWorksheet worksheet;
-	//for (int k = 0; k < m_surfaceType.GetCount(); k++) {
-	//	// 获取对应的表名
-	//	CString szWorksheet;
-	//	szWorksheet.AppendFormat("%d%d%d%d", ManTypeID, WalkTypeID, k, TargetTypeID);
+	for (int k = 0; k < m_surfaceType.GetCount(); k++) {
+		// 获取对应的表名
+		CString szWorksheetName;
+		szWorksheetName.AppendFormat("%d%d%d%d", ManTypeID, WalkTypeID, TargetTypeID, k);
+		//AfxMessageBox(szWorksheetName);
 
-	//	worksheet = GetWorksheet(szWorksheet);
-
-	//	long rows, columns;
-	//	cells = GetTable(worksheet, rows, columns);
-
-	//	collection.clear();
-	//	for (long i = 0; i < rows; i++) {
-	//		std::vector<CString> vec_item;
-	//		for (long j = 0; j < columns; j++) {
-	//			cell.AttachDispatch(cells.get_Item(COleVariant(i + 1), COleVariant(j + 1)).pdispVal, TRUE); // 从1开始的索引
-	//			VARIANT item = cell.get_Text();
-	//			vec_item.push_back(CString(item.bstrVal));
-	//		}
-	//		collection.push_back(vec_item);
-	//	}
-	//	full_table.push_back(make_pair(k, collection));
-	//}
+		// 通过表名获取对应的表单
+		vector<vector<CString> > table = GetTableByName(szWorksheetName);
+		table.erase(table.begin()); // 删除表头
+		full_table.push_back(make_pair(k, table));
+	}
 	CDialog::OnOK();
 }
 
@@ -343,6 +331,5 @@ vector<vector<CString> > CParamDialog::GetTableByName(CString tName)
 		pRst1->MoveNext();
 	}
 	pRst1->Close();
-	//m_database.CloseDatabase();
 	return vecTable;
 }
