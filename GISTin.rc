@@ -101,23 +101,12 @@ IDR_MAINFRAME MENU
 BEGIN
     POPUP "文件(&F)"
     BEGIN
-        MENUITEM "打开点文件",                       ID_LOAD_POINT_FILE
+        MENUITEM "打开点文件(TXT)",                  ID_LOAD_POINT_FILE
         MENUITEM "直接生成三角网",                     ID_GENERATE_DELAUNAY
         MENUITEM "串行算法1000 * 1000",             ID_DIVIDE_GENERATE_TIN
         MENUITEM "串行算法500 * 500",               ID_DIVIDE_GENERATE_TIN2
         MENUITEM "并行生成Delaunay1000*1000",       ID_PARALLEL_GENERATE_TIN
         MENUITEM "并行生成Delaunay500*500",         ID_PARALLEL_GENERATE_TIN2
-    END
-    POPUP "窗口操作"
-    BEGIN
-        MENUITEM "放大",                          ID_ZOOM_IN
-        MENUITEM "缩小",                          ID_ZOOM_OUT
-        MENUITEM "移动",                          ID_PAN
-        MENUITEM "复位",                          ID_GLOBE
-        MENUITEM "选择",                          ID_SELECT
-        MENUITEM "选起点",                         ID_STARTPNT
-        MENUITEM "选终点",                         ID_ENDPNT
-        MENUITEM "test",                        ID_TESTCASE
     END
     POPUP "显示控制"
     BEGIN
@@ -126,6 +115,18 @@ BEGIN
         MENUITEM "显示自适应分组",                     ID_DISPLAY_BINARY_TREE
         MENUITEM "显示辅助栅格场",                     ID_DISPLAY_GRID
         MENUITEM "显示结果路径",                      ID_DISPLAY_PATH
+    END
+    POPUP "窗口操作"
+    BEGIN
+        MENUITEM "放大",                          ID_ZOOM_IN
+        MENUITEM "缩小",                          ID_ZOOM_OUT
+        MENUITEM "移动",                          ID_PAN
+        MENUITEM "复位",                          ID_GLOBE
+        MENUITEM "选择",                          ID_SELECT
+        MENUITEM SEPARATOR
+        MENUITEM "选起点",                         ID_STARTPNT
+        MENUITEM "选终点",                         ID_ENDPNT
+        MENUITEM "test",                        ID_TESTCASE
     END
     POPUP "shapefile"
     BEGIN
@@ -138,15 +139,16 @@ BEGIN
             MENUITEM "终点",                          ID_END_PT
             MENUITEM "结果路径",                        ID_RESULT_PATH
         END
-        MENUITEM "建立拓扑关系",                      ID_TOPOCONSTRUCT
-        MENUITEM "路径生成",                        ID_CREATEPATH
-        MENUITEM "路径优化",                        32829
+        MENUITEM SEPARATOR
+        MENUITEM "生成三角网",                       ID_TIN_GENERATION
+        MENUITEM "最短路径生成",                      ID_CREATEPATH
+        MENUITEM "路径平滑优化",                      32829
         MENUITEM "缩小点集并加密",                     ID_POINT_DENSIFY
     END
     POPUP "栅格数据"
     BEGIN
-        MENUITEM "地表类型栅格",                      ID_RASTER_OPEN
-        MENUITEM "DEM更新z值",                     ID_DEM_Z_VALUE
+        MENUITEM "地表类型数据",                      ID_RASTER_OPEN
+        MENUITEM "高程数据DEM",                     ID_DEM_Z_VALUE
     END
     POPUP "设置"
     BEGIN
@@ -459,6 +461,35 @@ STRINGTABLE
 BEGIN
     AFX_IDS_SCRESTORE       "把窗口恢复到正常大小"
     AFX_IDS_SCTASKLIST      "激活任务表"
+END
+
+STRINGTABLE
+BEGIN
+    ID_GENERATE_DELAUNAY    "利用输入的点集生成对应的Delaunay三角网。"
+    ID_SHAPEFILE_OPEN       "打开shapefile文件(点、线、面均可)，随后自动进行点集去重与插入处理。"
+END
+
+STRINGTABLE
+BEGIN
+    ID_SAVE_POINT           "将三角网的【点集】保存为shapefile文件。"
+    ID_SAVE_LINE            "将三角网的【边集】保存为shapefile文件。"
+    ID_DEM_Z_VALUE          "加载DEM高程数据，用以更新三角网顶点的z值。"
+    ID_START_PT             "将【起点】保存为shapefile文件。"
+    ID_END_PT               "将【终点】保存为shapefile文件。"
+END
+
+STRINGTABLE
+BEGIN
+    ID_RESULT_PATH          "将【生成的最短路径】保存为shapefile文件。"
+    ID_TIN_GENERATION       "利用输入的点集生成对应的Delaunay三角网。"
+END
+
+STRINGTABLE
+BEGIN
+    ID_STARTPNT             "用鼠标拾取【起点】："
+    ID_ENDPNT               "用鼠标拾取【终点】："
+    ID_CREATEPATH           "计算最短路径"
+    ID_RASTER_OPEN          "加载地表类型栅格数据，用以确定三角网每条边的类型。"
 END
 
 #endif    // 中文(简体，中国) resources

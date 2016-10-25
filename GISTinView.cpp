@@ -53,7 +53,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_SHAPEFILE_OPEN, &CGISTinView::OnShapefileOpen)
 	ON_COMMAND(ID_STARTPNT, &CGISTinView::OnStartPNT)
 	ON_COMMAND(ID_ENDPNT, &CGISTinView::OnEndPNT)
-	ON_COMMAND(ID_TOPOCONSTRUCT, &CGISTinView::OnTopoConstruct)
+	//ON_COMMAND(ID_TOPOCONSTRUCT, &CGISTinView::OnTopoConstruct)
 	ON_COMMAND(ID_TESTCASE, &CGISTinView::OnTestCase)
 	ON_COMMAND(ID_CREATEPATH, &CGISTinView::OnCreatePath)
 	ON_COMMAND(ID_RASTER_OPEN, &CGISTinView::OnRasterOpen)
@@ -67,6 +67,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_START_PT, &CGISTinView::OnStartPointSave)
 	ON_COMMAND(ID_END_PT, &CGISTinView::OnEndPointSave)
 	ON_COMMAND(ID_RESULT_PATH, &CGISTinView::OnResultPathSave)
+	ON_COMMAND(ID_TIN_GENERATION, &CGISTinView::OnTinGeneration)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -204,8 +205,9 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 			pnt_count = poLine->getNumPoints();
 			vector<PNT> group(pnt_count);
 
+			OGRPoint P1;
+			OGRPoint *poPoint = &P1;
 			for (int i = 0; i < pnt_count; i++) {
-				OGRPoint *poPoint = new OGRPoint();
 				poLine->getPoint(i, poPoint);
 
 				PNT POINT;
@@ -223,7 +225,8 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 			OGRLinearRing* poRing = poPolygon->getExteriorRing();
 
 			pnt_count = poRing->getNumPoints();
-			OGRPoint *poPoint = new OGRPoint();
+			OGRPoint P1; 
+			OGRPoint *poPoint = &P1; //为解决内存泄漏问题，因此未使用动态分配内存策略
 			vector<PNT> group;
 
 			for (int i = 0; i < pnt_count; i++) {
@@ -248,7 +251,7 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 				poRing = poPolygon->getInteriorRing(k);
 				pnt_count = poRing->getNumPoints();
 
-				OGRPoint *poPoint = new OGRPoint();
+				//OGRPoint *poPoint = new OGRPoint();
 				vector<PNT> group;
 
 				if (fieldName) {
@@ -278,6 +281,7 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 				}
 				m_vecInputSHPGroups.push_back(make_pair(group, attr));
 			}
+			//delete poPoint;
 		}
 		break;
 		case wkbMultiPolygon25D:
@@ -295,7 +299,8 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 					attr = ((OGRFeature *)poPolygon)->GetFieldAsDouble(fieldName);
 				}
 
-				OGRPoint *poPoint = new OGRPoint();
+				OGRPoint P1;
+				OGRPoint *poPoint = &P1;
 				vector<PNT> group;
 				for (int i = 0; i < pnt_count; i++) {
 					poRing->getPoint(i, poPoint);
@@ -363,7 +368,7 @@ bool unique_shedhold_1E_0(const POINT &P1, const POINT &P2) {
 	return ((abs(P1.x - P2.x) <= 0.01) && (abs(P1.y - P2.y) <= 0.01));
 }
 
-// N 代表负数
+// N 代表负数，意为1e-2m
 template<typename POINT>
 bool unique_shedhold_1E_N2(const POINT &P1, const POINT &P2) {
 	return ((abs(P1.x - P2.x) <= 0.01) && (abs(P1.y - P2.y) <= 0.01));
@@ -382,7 +387,7 @@ void CGISTinView::ElimiateDuplicatePoints(vector<PNT> &PNTSet) {
 	PNTSet.erase(iter, PNTSet.end());
 
 	CString cstr;
-	cstr.AppendFormat("delta: %d", prev_count - PNTSet.size());
+	cstr.AppendFormat("点集去重处理。\n重复点数目(阈值0.01m): %d - %d = %d 个。\n", prev_count, PNTSet.size(), prev_count - PNTSet.size());
 	AfxMessageBox(cstr);
 }
 
@@ -706,6 +711,9 @@ CGISTinView::CGISTinView()
 
 CGISTinView::~CGISTinView()
 {
+	if(Point)
+		delete[] Point;
+	
 }
 
 BOOL CGISTinView::PreCreateWindow(CREATESTRUCT& cs)
@@ -2102,7 +2110,8 @@ void CGISTinView::OnShapefileOpen()
 	// TODO: 在此添加命令处理程序代码
 	CString  TheFileName;
 	CFileDialog  FileDlg(TRUE, NULL, "grass_land.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.shp|*.shp|", AfxGetMainWnd());
-	
+	FileDlg.m_ofn.lpstrTitle = _T("打开shapefile文件");
+
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
 	else
@@ -2143,7 +2152,7 @@ void CGISTinView::OnShapefileOpen()
 	}
 
 	CString cstr;
-	cstr.Format("total point counts: %d\n", pointNumber);
+	cstr.Format("点集中点的数量: %d\n", pointNumber);
 	AfxMessageBox(cstr);
 
 	nFlagPoint = true;
@@ -2156,7 +2165,8 @@ void CGISTinView::OnShapefileOpen()
 void CGISTinView::OnSavePoint()
 {
 	CString  TheFileName;
-	CFileDialog  FileDlg(TRUE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	FileDlg.m_ofn.lpstrTitle = _T("保存三角网点集");
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -2171,7 +2181,8 @@ void CGISTinView::OnSavePoint()
 void CGISTinView::OnSaveLine()
 {
 	CString  TheFileName;
-	CFileDialog  FileDlg(TRUE, NULL, "edges.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "edges.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|", AfxGetMainWnd());
+	FileDlg.m_ofn.lpstrTitle = _T("保存三角网边集");
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -2427,6 +2438,7 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, const char* szFileName) {
 }
 
 void CGISTinView::CreateLinePath() {
+	if ((nStartPointID == -1) || (nEndPointID == -1)) return;
 	//AssignEdgeAttribute(m_pDelaunayEdge, "E:\\快盘\\开阔空间的通行路径分析\\测试点\\shps\\grass_land.shp");
 	clock_t t1 = clock();
 	std::multiset<MyPoint*, MultisetLess> quePointID;
@@ -2554,10 +2566,10 @@ void CGISTinView::OnPathConstruction()
 	CreateLinePath();
 }
 
-void CGISTinView::OnTopoConstruct()
-{
-	PointLineTopoConstruct();
-}
+//void CGISTinView::OnTopoConstruct()
+//{
+//	PointLineTopoConstruct();
+//}
 
 
 void CGISTinView::OnCreatePath()
@@ -2574,6 +2586,8 @@ void CGISTinView::OnRasterOpen()
 {
 	CString TheFilePath;
 	CFileDialog fd(TRUE, NULL, "w001001x.adf", OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.adf|*.adf|", AfxGetMainWnd());
+	fd.m_ofn.lpstrTitle = _T("加载地表类型栅格数据");
+
 	if (fd.DoModal() == IDOK) {
 		TheFilePath = fd.GetFolderPath();
 	}
@@ -2643,6 +2657,8 @@ void CGISTinView::OnDemZValue()
 {
 	CString TheFilePath;
 	CFileDialog fd(TRUE, NULL, "w001001x.adf", OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.adf|*.adf|", AfxGetMainWnd());
+	fd.m_ofn.lpstrTitle = _T("加载DEM数据");
+	
 	if (fd.DoModal() == IDOK) {
 		TheFilePath = fd.GetFolderPath();
 	}
@@ -2684,6 +2700,7 @@ void CGISTinView::OnDemZValue()
 
 void CGISTinView::OnPathSmooth()
 {
+	if (!pSurfaceTypePackage) return;
 	switch (pSurfaceTypePackage->nDataType)
 	{
 	case 1:
@@ -3281,6 +3298,7 @@ public:
 
 void CGISTinView::OnPointDensify()
 {
+	if (nPathPointNum == 0) return;
 	bool *visited = new bool[pointNumber];
 	memset(visited, 0, pointNumber * sizeof(bool));
 	vector<Point2d> vecPoints;
@@ -3735,4 +3753,51 @@ void CGISTinView::OnResultPathSave()
 	OGRCleanupAll();
 
 	AfxMessageBox("保存完毕！");
+}
+
+
+void CGISTinView::OnTinGeneration()
+{
+	int nPoints;
+	Point2d *ps;
+	PDTranslateToSite(Point, pointNumber, ps, nPoints);
+	//1.直接生成三角网(测试时间)
+	double duration = 0;
+	clock_t start, stop;
+	start = clock();
+	MaxEdge maxEdge = doDelaunayTriangulation(ps, nPoints);
+	stop = clock();
+	duration = (double)(stop - start);
+	duration = duration / 1000;
+	//2.文件存取
+	FILE *fp = NULL;
+	CString strFilePath = m_strDictionary + "\\直接生成时间.txt";
+	CFileFind filefind;
+	if (filefind.FindFile(strFilePath))
+	{
+		fp = fopen(strFilePath, "at");
+	}
+	else
+	{
+		fp = fopen(strFilePath, "w");
+		fprintf(fp, "点数   读取文件时间   构建三角网时间\n");
+	}
+	fprintf(fp, "%d   %.4f   %.4f\n", pointNumber, m_dReadFileTime, duration);
+	fclose(fp);
+
+	m_pDelaunayEdge = new DCEL*[pointNumber * 3];
+	//3.收集边
+	if (maxEdge.le != NULL)
+	{
+		m_nDeEdgeCount = 0;
+		collectDcel(maxEdge.le, m_pDelaunayEdge, m_nDeEdgeCount);
+		collectDcel(maxEdge.re, m_pDelaunayEdge, m_nDeEdgeCount);
+	}
+
+	CString str;
+	str.AppendFormat("点数: %d .\n读取文件时间: %.4f s.\n构建三角网时间: %.4f s.\n", pointNumber, m_dReadFileTime, duration);
+	AfxMessageBox(str);
+
+	PointLineTopoConstruct();
+	RefreshScreen();
 }

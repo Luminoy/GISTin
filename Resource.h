@@ -83,13 +83,15 @@
 #define ID_END_PT                       32847
 #define ID_32848                        32848
 #define ID_RESULT_PATH                  32849
+#define ID_SHAPEFILE_32850              32850
+#define ID_TIN_GENERATION               32851
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        147
-#define _APS_NEXT_COMMAND_VALUE         32850
+#define _APS_NEXT_COMMAND_VALUE         32852
 #define _APS_NEXT_CONTROL_VALUE         1019
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

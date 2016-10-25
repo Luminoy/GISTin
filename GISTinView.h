@@ -295,7 +295,7 @@ public:
 	afx_msg void OnStartPNT();
 	afx_msg void OnEndPNT();
 	afx_msg void OnTestCase();
-	afx_msg void OnTopoConstruct();
+	//afx_msg void OnTopoConstruct();
 	afx_msg void OnCreatePath();
 	afx_msg void OnRasterOpen();
 	template<typename DT>
@@ -318,6 +318,7 @@ public:
 	afx_msg void OnStartPointSave();
 	afx_msg void OnEndPointSave();
 	afx_msg void OnResultPathSave();
+	afx_msg void OnTinGeneration();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp
