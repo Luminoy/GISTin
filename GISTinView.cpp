@@ -876,7 +876,7 @@ void CGISTinView::OnLButtonUp(UINT nFlags, CPoint point)
 		}
 		if (pid != -1) {
 			CString cstr;
-			cstr.AppendFormat("line count: %d\n", pTopoPointCollection[pid].nLineCount);
+			cstr.AppendFormat("与该点关联的线段数量: %d\n.", pTopoPointCollection[pid].nLineCount);
 			for (int j = 0; j < pTopoPointCollection[pid].nLineCount; j++) {
 				cstr.AppendFormat("%d: %d\n", j, pTopoPointCollection[pid].pConnectLineIDs[j]);
 			}
@@ -2175,6 +2175,8 @@ void CGISTinView::OnSavePoint()
 
 	//SavePointsToTextFile(TheFileName, PointData, pointNumber);
 	SaveShapeFile(TheFileName, PointData, pointNumber);
+
+	AfxMessageBox(_T("保存成功！"));
 }
 
 
@@ -2188,8 +2190,10 @@ void CGISTinView::OnSaveLine()
 		TheFileName = FileDlg.GetPathName();
 	else
 		return;
-
+	 
 	SaveShapeFile(TheFileName, m_pDelaunayEdge, m_nDeEdgeCount);
+
+	AfxMessageBox(_T("保存成功！"));
 }
 
 int CGISTinView::OnLeft(MyPoint P, MyPoint P1, MyPoint P2)
@@ -2242,7 +2246,7 @@ void CGISTinView::PointLineTopoConstruct() {
 	clock_t t2 = clock();
 	double interval = (double)(t2 - t1) / 1000.;
 	CString cstr;
-	cstr.Format("topology construction: %.3lf s.\n", interval);
+	cstr.Format("构建点线拓扑关系所耗时间: %.3lf s.\n", interval);
 	AfxMessageBox(cstr);
 
 }
@@ -2256,7 +2260,7 @@ int CGISTinView::ModifyPointData(int PID, PNT *pData) {
 			PointData2 = new MyPoint[pointNumber + 1];
 		}
 		catch (exception ex) {
-			AfxMessageBox("alloc error!");
+			AfxMessageBox("内存分配出现问题!");
 			return -1;
 		}
 		memcpy(PointData2, PointData, pointNumber * sizeof(MyPoint));
@@ -2498,7 +2502,7 @@ void CGISTinView::CreateLinePath() {
 	CString cstr;
 
 	clock_t t2 = clock();
-	cstr.Format("path calcalation: %.3lf s.\n", double(t2 - t1) / 1000.);
+	cstr.Format("最短路径计算时间: %.3lf s.\n", double(t2 - t1) / 1000.);
 	AfxMessageBox(cstr);
 
 	cstr.Format(" ");
@@ -3455,7 +3459,7 @@ void CGISTinView::OnPointDensify()
 	pointNumber = total_num;
 
 	CString cstr;
-	cstr.Format("total_num: %d\n", total_num);
+	cstr.Format("重新加密后点的数目: %d\n", total_num);
 	AfxMessageBox(cstr);
 
 	OnGenerateDelaunay();
