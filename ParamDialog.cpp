@@ -169,7 +169,7 @@ void CParamDialog::RefreshAttrTable()
 	// 获取对应的表名
 	CString szWorksheetName;
 	szWorksheetName.AppendFormat("%d%d%d%d", ManTypeID, WalkTypeID, TargetTypeID, SurfaceTypeID);
-	AfxMessageBox(szWorksheetName);
+	//AfxMessageBox(szWorksheetName);
 
 	// 通过表名获取对应的表单
 	collection = GetTableByName(szWorksheetName);

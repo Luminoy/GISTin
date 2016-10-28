@@ -32,12 +32,12 @@
 #include "delaunaytriangulation.h"
 #include "PublicStruct.h"
 
-#include <gdal.h>
-#include <gdal_priv.h>
-#include <gdal_frmts.h>
-#include <ogr_api.h>
-#include <ogr_core.h>
-#include <ogrsf_frmts.h>
+#include "gdal\include\gdal.h"
+#include "gdal\include\gdal_priv.h"
+#include "gdal\include\gdal_frmts.h"
+#include "gdal\include\ogr_api.h"
+#include "gdal\include\ogr_core.h"
+#include "gdal\include\ogrsf_frmts.h"
 
 #include <xhash>
 #include <utility>
