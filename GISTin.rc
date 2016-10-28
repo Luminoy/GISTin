@@ -126,7 +126,6 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "选起点",                         ID_STARTPNT
         MENUITEM "选终点",                         ID_ENDPNT
-        MENUITEM "test",                        ID_TESTCASE
     END
     POPUP "shapefile"
     BEGIN
@@ -142,7 +141,6 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "生成三角网",                       ID_TIN_GENERATION
         MENUITEM "最短路径生成",                      ID_CREATEPATH
-        MENUITEM "路径平滑优化",                      32829
         MENUITEM "缩小点集并加密",                     ID_POINT_DENSIFY
     END
     POPUP "栅格数据"
@@ -231,6 +229,20 @@ BEGIN
     LISTBOX         IDC_SURFACE_TYPE,16,104,64,148,LBS_SORT | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
 END
 
+IDD_DIALOG_INIT DIALOGEX 0, 0, 199, 153
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "确定",IDOK,56,120,50,14
+    EDITTEXT        IDC_MIN_DIS,86,16,89,14,ES_AUTOHSCROLL
+    EDITTEXT        IDC_MAX_DIS,85,42,90,14,ES_AUTOHSCROLL
+    LTEXT           "最小采样距离",IDC_STATIC,22,19,60,8
+    LTEXT           "最大采样距离",IDC_STATIC,21,44,60,10
+    LTEXT           "注：输入数据中，如果两点的距离小于给定的最小距离，则会做抽稀处理；如果两点之间的距离大于所设定的最大距离，则会做加密处理。",IDC_STATIC,20,76,155,32
+    PUSHBUTTON      "取消",IDCANCEL,126,120,50,14
+END
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -298,6 +310,14 @@ BEGIN
         TOPMARGIN, 7
         BOTTOMMARGIN, 295
     END
+
+    IDD_DIALOG_INIT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 192
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 146
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -335,6 +355,11 @@ BEGIN
     0, 0, 0, 0,
     0, 0, 0, 0,
     0, 0, 0, 0
+END
+
+IDD_DIALOG_INIT AFX_DIALOG_LAYOUT
+BEGIN
+    0
 END
 
 

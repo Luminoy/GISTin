@@ -12,6 +12,7 @@
 #define IDD_GRID_DLG                    142
 #define IDD_THRESHOLD                   143
 #define IDD_PARAM_DIALOG                144
+#define IDD_DIALOG_INIT                 153
 #define IDC_EDIT1                       1000
 #define IDC_EDIT2                       1001
 #define IDC_EDIT3                       1003
@@ -26,6 +27,8 @@
 #define IDC_FILEBROWSE                  1013
 #define IDC_TARGET_TYPE                 1015
 #define IDC_SURFACE_TYPE                1018
+#define IDC_MIN_DIS                     1019
+#define IDC_MAX_DIS                     1020
 #define ID_LOAD_POINT_FILE              32771
 #define ID_LOAD_LINE_FILE               32772
 #define ID_GLOBE                        32773
@@ -90,9 +93,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        147
+#define _APS_NEXT_RESOURCE_VALUE        155
 #define _APS_NEXT_COMMAND_VALUE         32852
-#define _APS_NEXT_CONTROL_VALUE         1019
+#define _APS_NEXT_CONTROL_VALUE         1021
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

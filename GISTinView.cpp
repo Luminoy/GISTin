@@ -1,17 +1,10 @@
 // GISTinView.cpp : implementation of the CGISTinView class
 //
 #include "stdafx.h"
-#include "GISTin.h"
-#include "GISTinDoc.h"
 #include "GISTinView.h"
-#include "GridDlg.h"
-#include "math.h"
-#include "ParamDialog.h"
 
-#include "BinaryTree.h"
-
-#define MIN_DIS_VALUE 1.0
-#define MAX_DIS_VALUE 10.0
+//#define MIN_DIS_VALUE 1.0
+//#define MAX_DIS_VALUE 10.0
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -379,6 +372,11 @@ bool unique_shedhold_1E_N6(const POINT &p1, const POINT &p2) {
 	return ((abs(p1.x - p2.x) <= 1e-6) && (abs(p1.y - p2.y) <= 1e-6));
 }
 
+template<typename POINT>
+bool unique_point_equal(const POINT &P1, const POINT &P2) {
+	return ((abs(p1.x - p2.x) <= 1e-6) && (abs(p1.y - p2.y) <= 1e-6));
+}
+
 void CGISTinView::ElimiateDuplicatePoints(vector<PNT> &PNTSet) {
 	int prev_count = PNTSet.size();
 	sort(PNTSet.begin(), PNTSet.end(), point_cmp<PNT>);
@@ -513,6 +511,9 @@ void CGISTinView::SaveShapeFile(const char *filename, DCEL** pData, int count) {
 
 CGISTinView::CGISTinView()
 {
+	MIN_DIS_VALUE = 1.0;
+	MAX_DIS_VALUE = 10.0;
+
 	OperateID=0;  zoomratio=1; 	Captured=FALSE; 	
 	m_hZoomIn=AfxGetApp()->LoadCursor(IDC_ZOOMIN);
 	m_hZoomOut=AfxGetApp()->LoadCursor(IDC_ZOOMOUT);
@@ -2120,6 +2121,13 @@ void CGISTinView::OnShapefileOpen()
 	//char *filename = CString2LPSTR(TheFileName);
 	ReadShapefile(TheFileName, "Id");
 	// 分割长线段
+	CSplitDisDialog sdd;
+	if (sdd.DoModal() == IDOK) 
+	{
+		MAX_DIS_VALUE = sdd.max_dis_value;
+		MIN_DIS_VALUE = sdd.min_dis_value;
+	}
+
 	vector<PNT> PNTSet = SplitLongSegments(m_vecInputSHPGroups);
 	// 去重处理！
 	ElimiateDuplicatePoints(PNTSet);

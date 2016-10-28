@@ -152,6 +152,7 @@
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="ParamDialog.cpp" />
     <ClCompile Include="point2d.cpp" />
+    <ClCompile Include="SplitDisDialog.cpp" />
     <ClCompile Include="StdAfx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">stdafx.h</PrecompiledHeaderFile>
@@ -185,6 +186,7 @@
     <ClInclude Include="point2d.h" />
     <ClInclude Include="PublicStruct.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="SplitDisDialog.h" />
     <ClInclude Include="StdAfx.h" />
     <ClInclude Include="utility.h" />
   </ItemGroup>

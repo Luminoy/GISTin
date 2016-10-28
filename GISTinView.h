@@ -28,9 +28,17 @@
 #define   MAX_COLOR_NUM     136
 //------------------
 
-
+#include "StdAfx.h"
 #include "delaunaytriangulation.h"
 #include "PublicStruct.h"
+#include "SplitDisDialog.h"
+#include "GISTin.h"
+#include "GISTinDoc.h"
+#include "GridDlg.h"
+#include "math.h"
+#include "ParamDialog.h"
+#include "BinaryTree.h"
+
 
 #include "gdal\include\gdal.h"
 #include "gdal\include\gdal_priv.h"
@@ -134,6 +142,11 @@ private:
 
    map<pair<int, int>, double, map_comp> surf_slopeTable;      // 栅格地表类型id码与坡度范围类型id码为key, double为value
    vector<pair<double, int> > slope_IdTable;
+
+public:
+   double MIN_DIS_VALUE;
+   double MAX_DIS_VALUE;
+
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
