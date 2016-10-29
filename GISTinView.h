@@ -143,6 +143,7 @@ private:
    map<pair<int, int>, double, map_comp> surf_slopeTable;      // 栅格地表类型id码与坡度范围类型id码为key, double为value
    vector<pair<double, int> > slope_IdTable;
 
+   OGRwkbGeometryType poInputShpType;
 public:
    double MIN_DIS_VALUE;
    double MAX_DIS_VALUE;

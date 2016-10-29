@@ -161,9 +161,9 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 	int pnt_count = 0;
 	while ((poFeat = poLayer->GetNextFeature()) != NULL) {
 		OGRGeometry *poGeometry = poFeat->GetGeometryRef();
-		OGRwkbGeometryType poType;
+		
 		if (poGeometry != NULL) {
-			poType = poGeometry->getGeometryType();
+			poInputShpType = poGeometry->getGeometryType();
 		}
 		OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
 
@@ -172,7 +172,7 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 			attr = poFeat->GetFieldAsDouble(fieldName);
 		}
 
-		switch (poType)
+		switch (poInputShpType)
 		{
 		case wkbPoint:
 		{
@@ -196,7 +196,7 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 		{
 			OGRLineString *poLine = (OGRLineString *)poGeometry;
 			pnt_count = poLine->getNumPoints();
-			vector<PNT> group(pnt_count);
+			vector<PNT> group;
 
 			OGRPoint P1;
 			OGRPoint *poPoint = &P1;
@@ -323,26 +323,67 @@ vector<PNT> CGISTinView::SplitLongSegments(vector<pair<vector<PNT>, double> >& m
 {
 	vector<PNT> PNTSet;
 	// 长线段的切割
-	for (int v = 0; v < m_vecInputSHPGroups.size(); v++) {
-		vector<PNT>& group = m_vecInputSHPGroups[v].first;
-		if (group.size() >= 2) {
+
+	switch (poInputShpType)
+	{
+	case wkbPoint:
+		for (int v = 0; v < m_vecInputSHPGroups.size(); v++) {
+			vector<PNT>& group = m_vecInputSHPGroups[v].first;
 			for (int w = 0; w < group.size(); w++) {
-				PNT pFirst = group[w % group.size()];
-				PNT pSecond = group[(w + 1) % group.size()];
-				double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
-				if (dis > MAX_DIS_VALUE) {
-					int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % 10 == 0 ? 0 : 1); // 应该将原长线段划分为parts段
-					double dx = (pSecond.x - pFirst.x) / parts;
-					double dy = (pSecond.y - pFirst.y) / parts;
-					for (int i = 1; i < parts; i++) {
-						PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
-						PNTSet.push_back(NewPNT);
-					}
-				}
-				PNTSet.push_back(pSecond);
+				PNT& pFirst = group[w % group.size()];
+				PNTSet.push_back(pFirst);
 			}
 		}
+		break;
+	case wkbLineString:
+		for (int v = 0; v < m_vecInputSHPGroups.size(); v++) {
+			vector<PNT>& group = m_vecInputSHPGroups[v].first;
+			if (group.size() >= 2) {
+				for (int w = 0; w < group.size() - 1; w++) {
+					PNT pFirst = group[w];
+					PNT pSecond = group[w + 1];
+					double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
+					if (dis > MAX_DIS_VALUE) {
+						int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % int(MAX_DIS_VALUE) == 0 ? 0 : 1); // 应该将原长线段划分为parts段
+						double dx = (pSecond.x - pFirst.x) / parts;
+						double dy = (pSecond.y - pFirst.y) / parts;
+						for (int i = 1; i < parts; i++) {
+							PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
+							PNTSet.push_back(NewPNT);
+						}
+					}
+					PNTSet.push_back(pSecond);
+				}
+			}
+		}
+		break;
+	case wkbPolygon:
+		for (int v = 0; v < m_vecInputSHPGroups.size(); v++) {
+			vector<PNT>& group = m_vecInputSHPGroups[v].first;
+			if (group.size() >= 2) {
+				for (int w = 0; w < group.size(); w++) {
+					PNT pFirst = group[w % group.size()];
+					PNT pSecond = group[(w + 1) % group.size()];
+					double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
+					if (dis > MAX_DIS_VALUE) {
+						int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % int(MAX_DIS_VALUE) == 0 ? 0 : 1); // 应该将原长线段划分为parts段
+						double dx = (pSecond.x - pFirst.x) / parts;
+						double dy = (pSecond.y - pFirst.y) / parts;
+						for (int i = 1; i < parts; i++) {
+							PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
+							PNTSet.push_back(NewPNT);
+						}
+					}
+					PNTSet.push_back(pSecond);
+				}
+			}
+		}
+		break;
+
+	default:
+		break;
 	}
+
 	return PNTSet;
 }
 
@@ -2315,7 +2356,7 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, int count, MyDataPackage *p
 		//r1 = (3554833.909 - UpperBound) / PixelHeight;
 
 		double resistance = 0;
-		const int delta = 2;
+		const int delta = 1;
 
 		//vector<int> resist;
 		//resist.resize(2 * delta + 1);
