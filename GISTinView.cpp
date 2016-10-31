@@ -66,6 +66,27 @@ END_MESSAGE_MAP()
 /////////////////////////////////////////////////////////////////////////////
 // CGISTinView construction/destruction
 
+CString exts[] = { _T(".shp"), _T(".sbn"), _T(".sbx"), _T(".dbf"), _T(".prj"), _T(".shp.xml"), _T(".xml") };
+
+// 根据shapefile名称删除所有相关的其它文件(shp,shx,sbn,sbx,prj,dbf,xml)
+void DeleteAllFilesByName(CString filePath, CString fileName, CString exts[], int len) {
+	int index = fileName.Find(".");
+	int count = fileName.GetLength() - index;
+	CString fullName = fileName;
+	fullName.Delete(index, count);
+	CString fullPath = filePath + _T("\\") + fullName;
+	for (int i = 0; i < len; i++)
+	{
+		try
+		{
+			DeleteFile(fullPath + exts[i]);
+		}
+		catch (exception ex)
+		{
+			AfxMessageBox("删除文件引发的错误！");
+		}
+	}
+}
 
 MyDataPackage* CGISTinView::ReadRasterData(const char *filename) {
 	GDALAllRegister();
@@ -2222,17 +2243,34 @@ void CGISTinView::OnSavePoint()
 	else
 		return;
 
+	if (PathFileExists(TheFileName))
+	{
+		int retCode = AfxMessageBox(_T("该位置下已存在同名文件！是否覆盖？"), MB_YESNOCANCEL);
+		if (retCode == IDYES)
+		{
+			DeleteAllFilesByName(FileDlg.GetFolderPath(), FileDlg.GetFileName(), exts, 7);
+		}
+		else if (retCode == IDNO)
+		{
+			AfxMessageBox("保存失败！");
+			return;
+		}
+		else
+		{
+			AfxMessageBox("保存已取消！");
+			return;
+		}
+	}
 	//SavePointsToTextFile(TheFileName, PointData, pointNumber);
 	SaveShapeFile(TheFileName, PointData, pointNumber);
 
 	AfxMessageBox(_T("保存成功！"));
 }
 
-
 void CGISTinView::OnSaveLine()
 {
 	CString  TheFileName;
-	CFileDialog  FileDlg(FALSE, NULL, "edges.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "edges.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.shp|*.shp|", AfxGetMainWnd());
 	FileDlg.m_ofn.lpstrTitle = _T("保存三角网边集");
 
 	if (FileDlg.DoModal() == IDOK)
@@ -2240,9 +2278,28 @@ void CGISTinView::OnSaveLine()
 	else
 		return;
 	 
-	SaveShapeFile(TheFileName, m_pDelaunayEdge, m_nDeEdgeCount);
+	if (PathFileExists(TheFileName))
+	{
+		int retCode = AfxMessageBox(_T("该位置下已存在同名文件！是否覆盖？"), MB_YESNOCANCEL);
+		if (retCode == IDYES) 
+		{
+			DeleteAllFilesByName(FileDlg.GetFolderPath(), FileDlg.GetFileName(), exts, 7);
+		}
+		else if (retCode == IDNO) 
+		{
+			AfxMessageBox("保存失败！");
+			return;
+		}
+		else
+		{
+			AfxMessageBox("保存已取消！");
+			return;
+		}
+	}
 
+	SaveShapeFile(TheFileName, m_pDelaunayEdge, m_nDeEdgeCount);
 	AfxMessageBox(_T("保存成功！"));
+	
 }
 
 int CGISTinView::OnLeft(MyPoint P, MyPoint P1, MyPoint P2)
@@ -3725,8 +3782,26 @@ void CGISTinView::OnStartPointSave()
 	else
 		return;
 
-	SaveShapeFile(TheFileName, PointData + nStartPointID, 1);
+	if (PathFileExists(TheFileName))
+	{
+		int retCode = AfxMessageBox(_T("该位置下已存在同名文件！是否覆盖？"), MB_YESNOCANCEL);
+		if (retCode == IDYES)
+		{
+			DeleteAllFilesByName(FileDlg.GetFolderPath(), FileDlg.GetFileName(), exts, 7);
+		}
+		else if (retCode == IDNO)
+		{
+			AfxMessageBox("保存失败！");
+			return;
+		}
+		else
+		{
+			AfxMessageBox("保存已取消！");
+			return;
+		}
+	}
 
+	SaveShapeFile(TheFileName, PointData + nStartPointID, 1);
 	AfxMessageBox("保存完毕！");
 }
 
@@ -3747,8 +3822,26 @@ void CGISTinView::OnEndPointSave()
 	else
 		return;
 
-	SaveShapeFile(TheFileName, PointData + nEndPointID, 1);
+	if (PathFileExists(TheFileName))
+	{
+		int retCode = AfxMessageBox(_T("该位置下已存在同名文件！是否覆盖？"), MB_YESNOCANCEL);
+		if (retCode == IDYES)
+		{
+			DeleteAllFilesByName(FileDlg.GetFolderPath(), FileDlg.GetFileName(), exts, 7);
+		}
+		else if (retCode == IDNO)
+		{
+			AfxMessageBox("保存失败！");
+			return;
+		}
+		else
+		{
+			AfxMessageBox("保存已取消！");
+			return;
+		}
+	}
 
+	SaveShapeFile(TheFileName, PointData + nEndPointID, 1);
 	AfxMessageBox("保存完毕！");
 }
 
@@ -3768,6 +3861,25 @@ void CGISTinView::OnResultPathSave()
 		TheFileName = FileDlg.GetPathName();
 	else
 		return;
+
+	if (PathFileExists(TheFileName))
+	{
+		int retCode = AfxMessageBox(_T("该位置下已存在同名文件！是否覆盖？"), MB_YESNOCANCEL);
+		if (retCode == IDYES)
+		{
+			DeleteAllFilesByName(FileDlg.GetFolderPath(), FileDlg.GetFileName(), exts, 7);
+		}
+		else if (retCode == IDNO)
+		{
+			AfxMessageBox("保存失败！");
+			return;
+		}
+		else
+		{
+			AfxMessageBox("保存已取消！");
+			return;
+		}
+	}
 
 	::OGRRegisterAll();
 	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
