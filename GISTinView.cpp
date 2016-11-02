@@ -340,6 +340,13 @@ void CGISTinView::ReadShapefile(const char *fileName, char *fieldName) {
 	OGRCleanupAll();
 }
 
+int DivideIntoMultiParts(double distance, double maxLen)
+{
+	if (maxLen < 1e-6) return 1;
+	int parts = ceil(distance / maxLen);
+	return parts;
+}
+
 vector<PNT> CGISTinView::SplitLongSegments(vector<pair<vector<PNT>, double> >& m_vecInputSHPGroups)
 {
 	vector<PNT> PNTSet;
@@ -363,15 +370,13 @@ vector<PNT> CGISTinView::SplitLongSegments(vector<pair<vector<PNT>, double> >& m
 				for (int w = 0; w < group.size() - 1; w++) {
 					PNT pFirst = group[w];
 					PNT pSecond = group[w + 1];
-					double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
-					if (dis > MAX_DIS_VALUE) {
-						int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % int(MAX_DIS_VALUE) == 0 ? 0 : 1); // 应该将原长线段划分为parts段
-						double dx = (pSecond.x - pFirst.x) / parts;
-						double dy = (pSecond.y - pFirst.y) / parts;
-						for (int i = 1; i < parts; i++) {
-							PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
-							PNTSet.push_back(NewPNT);
-						}
+					double distance = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
+					int parts = DivideIntoMultiParts(distance, MAX_DIS_VALUE);// 应该将原长线段划分为parts段
+					double dx = (pSecond.x - pFirst.x) / parts;
+					double dy = (pSecond.y - pFirst.y) / parts;
+					for (int i = 1; i < parts; i++) {
+						PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
+						PNTSet.push_back(NewPNT);
 					}
 					PNTSet.push_back(pSecond);
 				}
@@ -385,15 +390,13 @@ vector<PNT> CGISTinView::SplitLongSegments(vector<pair<vector<PNT>, double> >& m
 				for (int w = 0; w < group.size(); w++) {
 					PNT pFirst = group[w % group.size()];
 					PNT pSecond = group[(w + 1) % group.size()];
-					double dis = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
-					if (dis > MAX_DIS_VALUE) {
-						int parts = int(dis / MAX_DIS_VALUE) + (int(dis) % int(MAX_DIS_VALUE) == 0 ? 0 : 1); // 应该将原长线段划分为parts段
-						double dx = (pSecond.x - pFirst.x) / parts;
-						double dy = (pSecond.y - pFirst.y) / parts;
-						for (int i = 1; i < parts; i++) {
-							PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
-							PNTSet.push_back(NewPNT);
-						}
+					double distance = sqrt(pow(pSecond.x - pFirst.x, 2) + pow(pSecond.y - pFirst.y, 2));
+					int parts = DivideIntoMultiParts(distance, MAX_DIS_VALUE);// 应该将原长线段划分为parts段
+					double dx = (pSecond.x - pFirst.x) / parts;
+					double dy = (pSecond.y - pFirst.y) / parts;
+					for (int i = 1; i < parts; i++) {
+						PNT NewPNT = { pFirst.x + i * dx, pFirst.y + i * dy };
+						PNTSet.push_back(NewPNT);
 					}
 					PNTSet.push_back(pSecond);
 				}
