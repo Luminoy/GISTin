@@ -145,10 +145,12 @@
     <ClCompile Include="dcel.cpp" />
     <ClCompile Include="delaunaytriangulation.cpp" />
     <ClCompile Include="edge.cpp" />
+    <ClCompile Include="GetInputValueDialog.cpp" />
     <ClCompile Include="GISTin.cpp" />
     <ClCompile Include="GISTinDoc.cpp" />
     <ClCompile Include="GISTinView.cpp" />
     <ClCompile Include="GridDlg.cpp" />
+    <ClCompile Include="InputDataDialog.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="ParamDialog.cpp" />
     <ClCompile Include="point2d.cpp" />
@@ -177,10 +179,12 @@
     <ClInclude Include="dcel.h" />
     <ClInclude Include="delaunaytriangulation.h" />
     <ClInclude Include="edge.h" />
+    <ClInclude Include="GetInputValueDialog.h" />
     <ClInclude Include="GISTin.h" />
     <ClInclude Include="GISTinDoc.h" />
     <ClInclude Include="GISTinView.h" />
     <ClInclude Include="GridDlg.h" />
+    <ClInclude Include="InputDataDialog.h" />
     <ClInclude Include="MainFrm.h" />
     <ClInclude Include="ParamDialog.h" />
     <ClInclude Include="point2d.h" />

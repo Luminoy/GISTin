@@ -38,7 +38,7 @@
 #include "math.h"
 #include "ParamDialog.h"
 #include "BinaryTree.h"
-
+#include "InputDataDialog.h"
 
 #include "gdal\include\gdal.h"
 #include "gdal\include\gdal_priv.h"

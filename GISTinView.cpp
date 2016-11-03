@@ -3412,6 +3412,12 @@ public:
 void CGISTinView::OnPointDensify()
 {
 	if (nPathPointNum == 0) return;
+	double times = 5;
+	CInputDataDialog dataDlg("Dialog Caption", "¼ÓÃÜ±¶Êý£º", "5");
+	if (dataDlg.DoModal() == IDOK)
+	{
+		times = dataDlg.GetReturnValue();
+	}
 	bool *visited = new bool[pointNumber];
 	memset(visited, 0, pointNumber * sizeof(bool));
 	vector<Point2d> vecPoints;
@@ -3514,7 +3520,8 @@ void CGISTinView::OnPointDensify()
 	//AfxMessageBox(str1);
 
 	int origin_num = vecMyPoints.size();
-	int total_num = origin_num * 5;
+
+	int total_num = int(origin_num * times);
 	MyPoint *pNewPoints = new MyPoint[total_num];
 
 	CString str1;
@@ -3573,29 +3580,32 @@ void CGISTinView::OnPointDensify()
 
 	OnGenerateDelaunay();
 
-	switch (pSurfaceTypePackage->nDataType)
+	if (pSurfaceTypePackage)
 	{
-	case 1:
-		AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
-		break;
-	case 2:
-		AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
-		break;
-	case 3:
-		AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
-		break;
-	case 4:
-		AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
-		break;
-	case 5:
-		AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
-		break;
-	case 6:
-		AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
-		break;
-	default:
-		AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
-		break;
+		switch (pSurfaceTypePackage->nDataType)
+		{
+		case 1:
+			AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 2:
+			AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 3:
+			AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 4:
+			AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 5:
+			AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 6:
+			AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		default:
+			AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		}
 	}
 	OnCreatePath();
 
@@ -3778,7 +3788,7 @@ void CGISTinView::OnStartPointSave()
 	}
 	
 	CString  TheFileName;
-	CFileDialog  FileDlg(TRUE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -3818,7 +3828,7 @@ void CGISTinView::OnEndPointSave()
 	}
 
 	CString  TheFileName;
-	CFileDialog  FileDlg(TRUE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -3858,7 +3868,7 @@ void CGISTinView::OnResultPathSave()
 	}
 
 	CString  TheFileName;
-	CFileDialog  FileDlg(TRUE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -3888,7 +3898,7 @@ void CGISTinView::OnResultPathSave()
 	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
 	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
 	OGRDataSource *poDS = poDriver->CreateDataSource(TheFileName);
-	OGRLayer *poLayer = poDS->CreateLayer(TheFileName, NULL, wkbLineString);
+	OGRLayer *poLayer = poDS->CreateLayer(TheFileName.GetBuffer(), NULL, wkbLineString);
 	OGRFieldDefn ogrField("NO", OFTInteger);
 	ogrField.SetWidth(10);
 	poLayer->CreateField(&ogrField);
