@@ -3582,6 +3582,34 @@ void CGISTinView::OnPointDensify()
 
 	OnGenerateDelaunay();
 
+	if (pDEMPackage)
+	{
+		switch (pDEMPackage->nDataType)
+		{
+		case 1:
+			UpdateTinZValueByDEM<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 2:
+			UpdateTinZValueByDEM<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 3:
+			UpdateTinZValueByDEM<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 4:
+			UpdateTinZValueByDEM<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 5:
+			UpdateTinZValueByDEM<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 6:
+			UpdateTinZValueByDEM<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		default:
+			UpdateTinZValueByDEM<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		}
+	}
+
 	if (pSurfaceTypePackage)
 	{
 		switch (pSurfaceTypePackage->nDataType)
@@ -3609,6 +3637,8 @@ void CGISTinView::OnPointDensify()
 			break;
 		}
 	}
+
+	ChangeDelaunayEdgeResistance();
 	OnCreatePath();
 
 	CRect Rect;
