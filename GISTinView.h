@@ -56,6 +56,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 using namespace std;
 
 // 为pair<int, int>, double 的键值对写的比较函数
@@ -333,6 +334,8 @@ public:
 	afx_msg void OnEndPointSave();
 	afx_msg void OnResultPathSave();
 	afx_msg void OnTinGeneration();
+	afx_msg void OnResultPath2Text();
+	afx_msg void OnSaveLine2Text();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

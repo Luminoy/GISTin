@@ -61,6 +61,8 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_END_PT, &CGISTinView::OnEndPointSave)
 	ON_COMMAND(ID_RESULT_PATH, &CGISTinView::OnResultPathSave)
 	ON_COMMAND(ID_TIN_GENERATION, &CGISTinView::OnTinGeneration)
+	ON_COMMAND(ID_RESULT_PATH_TXT, &CGISTinView::OnResultPath2Text)
+	ON_COMMAND(ID_SAVE_LINE_TXT, &CGISTinView::OnSaveLine2Text)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -3934,6 +3936,111 @@ void CGISTinView::OnResultPathSave()
 }
 
 
+void CGISTinView::OnResultPath2Text()
+{
+	// TODO: 在此添加命令处理程序代码
+	if (nPathPointNum <= 1) {
+		AfxMessageBox("未计算路径！");
+		return;
+	}
+
+	CString  TheFileName;
+	CFileDialog  FileDlg(FALSE, NULL, "result_path.txt", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, _T("文本文件(*.txt)|*.txt|"), AfxGetMainWnd());
+
+	if (FileDlg.DoModal() == IDOK)
+		TheFileName = FileDlg.GetPathName();
+	else
+		return;
+
+	if (PathFileExists(TheFileName))
+	{
+		int retCode = AfxMessageBox(_T("该位置下已存在同名文件！是否覆盖？"), MB_YESNOCANCEL);
+		if (retCode == IDYES)
+		{
+			DeleteAllFilesByName(FileDlg.GetFolderPath(), FileDlg.GetFileName(), exts, 7);
+		}
+		else if (retCode == IDNO)
+		{
+			AfxMessageBox("保存失败！");
+			return;
+		}
+		else
+		{
+			AfxMessageBox("保存已取消！");
+			return;
+		}
+	}
+
+	FILE *fp = NULL;
+	fopen_s(&fp, TheFileName, "w");
+	fprintf_s(fp, "Polyline\r\n");
+	int line_id = 0, part_number = 0;
+	fprintf_s(fp, "%d %d\r\n", line_id, part_number);
+	for (int pnt_id = 0; pnt_id < nPathPointNum; ++pnt_id) {
+		double x1 = pPathPoints[pnt_id].x + fTinMinX;
+		double y1 = pPathPoints[pnt_id].y + fTinMinY;
+
+		fprintf_s(fp, "%d %.3lf %.3lf nan nan\r\n", pnt_id, x1,y1);
+	}
+	
+	fprintf_s(fp, "END\r\n");
+	fclose(fp);
+
+	AfxMessageBox("保存成功！");
+}
+
+void CGISTinView::OnSaveLine2Text()
+{
+	CString  TheFileName;
+	CFileDialog  FileDlg(FALSE, NULL, "result_path.txt", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, _T("文本文件(*.txt)|*.txt|"), AfxGetMainWnd());
+
+	if (FileDlg.DoModal() == IDOK)
+		TheFileName = FileDlg.GetPathName();
+	else
+		return;
+
+	if (PathFileExists(TheFileName))
+	{
+		int retCode = AfxMessageBox(_T("该位置下已存在同名文件！是否覆盖？"), MB_YESNOCANCEL);
+		if (retCode == IDYES)
+		{
+			DeleteAllFilesByName(FileDlg.GetFolderPath(), FileDlg.GetFileName(), exts, 7);
+		}
+		else if (retCode == IDNO)
+		{
+			AfxMessageBox("保存失败！");
+			return;
+		}
+		else
+		{
+			AfxMessageBox("保存已取消！");
+			return;
+		}
+	}
+
+	FILE *fp = NULL;
+	fopen_s(&fp, TheFileName, "w");
+	fprintf_s(fp, "Polyline\r\n");
+	int part_number = 0;
+	for (int line_id = 0; line_id < m_nDeEdgeCount; ++line_id)
+	{
+		fprintf_s(fp, "%d %d\r\n", line_id, part_number);
+		for (int pnt_id = 0; pnt_id < 2; ++pnt_id) {
+			double x1 = m_pDelaunayEdge[line_id]->e[pnt_id].oData->x + fTinMinX;
+			double y1 = m_pDelaunayEdge[line_id]->e[pnt_id].oData->y + fTinMinY;
+
+			fprintf_s(fp, "%d %.3lf %.3lf nan nan\r\n", pnt_id, x1, y1);
+		}
+	}
+
+
+	fprintf_s(fp, "END\r\n");
+	fclose(fp);
+
+	AfxMessageBox("保存成功！");
+}
+
+
 void CGISTinView::OnTinGeneration()
 {
 	int nPoints;
@@ -3979,3 +4086,5 @@ void CGISTinView::OnTinGeneration()
 	PointLineTopoConstruct();
 	RefreshScreen();
 }
+
+

@@ -134,9 +134,11 @@ BEGIN
         BEGIN
             MENUITEM "三角网点集",                       ID_SAVE_POINT
             MENUITEM "三角网边集",                       ID_SAVE_LINE
+            MENUITEM "三角网边集(TXT)",                  ID_SAVE_LINE_TXT
             MENUITEM "起点",                          ID_START_PT
             MENUITEM "终点",                          ID_END_PT
             MENUITEM "结果路径",                        ID_RESULT_PATH
+            MENUITEM "结果路径(TXT)",                   ID_RESULT_PATH_TXT
         END
         MENUITEM SEPARATOR
         MENUITEM "生成三角网",                       ID_TIN_GENERATION
