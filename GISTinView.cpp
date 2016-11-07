@@ -448,11 +448,11 @@ void CGISTinView::ElimiateDuplicatePoints(vector<PNT> &PNTSet) {
 	int prev_count = PNTSet.size();
 	sort(PNTSet.begin(), PNTSet.end(), point_cmp<PNT>);
 
-	vector<PNT>::iterator iter = unique(PNTSet.begin(), PNTSet.end(), unique_shedhold_1E_N2<PNT>);
+	vector<PNT>::iterator iter = unique(PNTSet.begin(), PNTSet.end(), unique_shedhold_1E_N6<PNT>);
 	PNTSet.erase(iter, PNTSet.end());
 
 	CString cstr;
-	cstr.AppendFormat("点集去重处理。\n重复点数目(阈值0.01m): %d - %d = %d 个。\n", prev_count, PNTSet.size(), prev_count - PNTSet.size());
+	cstr.AppendFormat("点集去重处理。\n重复点数目(阈值1e-6m): %d - %d = %d 个。\n", prev_count, PNTSet.size(), prev_count - PNTSet.size());
 	AfxMessageBox(cstr);
 }
 
@@ -579,7 +579,7 @@ void CGISTinView::SaveShapeFile(const char *filename, DCEL** pData, int count) {
 CGISTinView::CGISTinView()
 {
 	MIN_DIS_VALUE = 1.0;
-	MAX_DIS_VALUE = 10.0;
+	MAX_DIS_VALUE = 5.0;
 
 	OperateID=0;  zoomratio=1; 	Captured=FALSE; 	
 	m_hZoomIn=AfxGetApp()->LoadCursor(IDC_ZOOMIN);
@@ -2177,7 +2177,7 @@ void CGISTinView::OnShapefileOpen()
 {
 	// TODO: 在此添加命令处理程序代码
 	CString  TheFileName;
-	CFileDialog  FileDlg(TRUE, NULL, "grass_land.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.shp|*.shp|", AfxGetMainWnd());
+	CFileDialog  FileDlg(TRUE, NULL, "Campus_Union.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "shapefile(*.shp)|*.shp||", AfxGetMainWnd());
 	FileDlg.m_ofn.lpstrTitle = _T("打开shapefile文件");
 
 	if (FileDlg.DoModal() == IDOK)
@@ -2188,7 +2188,7 @@ void CGISTinView::OnShapefileOpen()
 	//char *filename = CString2LPSTR(TheFileName);
 	ReadShapefile(TheFileName, "Id");
 	// 分割长线段
-	CSplitDisDialog sdd;
+	CSplitDisDialog sdd(MIN_DIS_VALUE, MAX_DIS_VALUE);
 	if (sdd.DoModal() == IDOK) 
 	{
 		MAX_DIS_VALUE = sdd.max_dis_value;
@@ -2240,7 +2240,7 @@ void CGISTinView::OnShapefileOpen()
 void CGISTinView::OnSavePoint()
 {
 	CString  TheFileName;
-	CFileDialog  FileDlg(FALSE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "tin_vertex.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "shapefile(*.shp)|*.shp||", AfxGetMainWnd());
 	FileDlg.m_ofn.lpstrTitle = _T("保存三角网点集");
 
 	if (FileDlg.DoModal() == IDOK)
@@ -2275,7 +2275,7 @@ void CGISTinView::OnSavePoint()
 void CGISTinView::OnSaveLine()
 {
 	CString  TheFileName;
-	CFileDialog  FileDlg(FALSE, NULL, "edges.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "*.shp|*.shp|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "tin_edges.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "shapefile(*.shp)|*.shp||", AfxGetMainWnd());
 	FileDlg.m_ofn.lpstrTitle = _T("保存三角网边集");
 
 	if (FileDlg.DoModal() == IDOK)
@@ -3820,7 +3820,7 @@ void CGISTinView::OnStartPointSave()
 	}
 	
 	CString  TheFileName;
-	CFileDialog  FileDlg(FALSE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "output_start_point.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "shapefile(*.shp)|*.shp||", AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -3860,7 +3860,7 @@ void CGISTinView::OnEndPointSave()
 	}
 
 	CString  TheFileName;
-	CFileDialog  FileDlg(FALSE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "output_end_point.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "shapefile(*.shp)|*.shp||", AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -3900,7 +3900,7 @@ void CGISTinView::OnResultPathSave()
 	}
 
 	CString  TheFileName;
-	CFileDialog  FileDlg(FALSE, NULL, "output_points.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, "*.shp|*.shp|*.txt|*.txt|", AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "output_tin_path.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "shapefile(*.shp)|*.shp||", AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -3975,7 +3975,7 @@ void CGISTinView::OnResultPath2Text()
 	}
 
 	CString  TheFileName;
-	CFileDialog  FileDlg(FALSE, NULL, "result_path.txt", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, _T("文本文件(*.txt)|*.txt|"), AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "output_tin_path_text.txt", OFN_HIDEREADONLY | OFN_ENABLESIZING, _T("文本文件(*.txt)|*.txt|"), AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();
@@ -4022,7 +4022,7 @@ void CGISTinView::OnResultPath2Text()
 void CGISTinView::OnSaveLine2Text()
 {
 	CString  TheFileName;
-	CFileDialog  FileDlg(FALSE, NULL, "result_path.txt", OFN_HIDEREADONLY | OFN_ENABLESIZING | OFN_OVERWRITEPROMPT, _T("文本文件(*.txt)|*.txt|"), AfxGetMainWnd());
+	CFileDialog  FileDlg(FALSE, NULL, "tin_edges_text.txt", OFN_HIDEREADONLY | OFN_ENABLESIZING, _T("文本文件(*.txt)|*.txt|"), AfxGetMainWnd());
 
 	if (FileDlg.DoModal() == IDOK)
 		TheFileName = FileDlg.GetPathName();

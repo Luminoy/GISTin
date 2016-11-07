@@ -13,8 +13,11 @@ IMPLEMENT_DYNAMIC(CSplitDisDialog, CDialogEx)
 CSplitDisDialog::CSplitDisDialog(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_DIALOG_INIT, pParent)
 {
-	min_dis_value = 1.0;
-	max_dis_value = 10.0;
+}
+
+CSplitDisDialog::CSplitDisDialog(double minDisValue, double maxDisValue, CWnd * pParent /*=NULL*/)
+	: CDialogEx(IDD_DIALOG_INIT, pParent), min_dis_value(minDisValue), max_dis_value(maxDisValue)
+{
 }
 
 CSplitDisDialog::~CSplitDisDialog()
@@ -68,7 +71,9 @@ BOOL CSplitDisDialog::OnInitDialog()
 
 void CSplitDisDialog::OnBnClickedCancel()
 {
-	if (AfxMessageBox(_T("取消设置则采用默认值，是否继续？"),MB_OKCANCEL) == IDOK) {
+	CString cstr;
+	cstr.Format(_T("取消设置则采用默认值(%.2lf-%.2lf)，是否继续？"), min_dis_value, max_dis_value);
+	if (AfxMessageBox(cstr, MB_OKCANCEL) == IDOK) {
 		CDialogEx::OnCancel();
 	}
 }

@@ -11,6 +11,7 @@ class CSplitDisDialog : public CDialogEx
 
 public:
 	CSplitDisDialog(CWnd* pParent = NULL);   // 标准构造函数
+	CSplitDisDialog(double minDisValue, double maxDisValue, CWnd* pParent = NULL);
 	virtual ~CSplitDisDialog();
 
 	double min_dis_value;
