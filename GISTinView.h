@@ -57,6 +57,7 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <bitset>
 using namespace std;
 
 // 为pair<int, int>, double 的键值对写的比较函数
@@ -336,6 +337,7 @@ public:
 	afx_msg void OnTinGeneration();
 	afx_msg void OnResultPath2Text();
 	afx_msg void OnSaveLine2Text();
+	afx_msg void OnUpdateDisplayPath(CCmdUI *pCmdUI);
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

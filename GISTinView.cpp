@@ -63,6 +63,7 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_TIN_GENERATION, &CGISTinView::OnTinGeneration)
 	ON_COMMAND(ID_RESULT_PATH_TXT, &CGISTinView::OnResultPath2Text)
 	ON_COMMAND(ID_SAVE_LINE_TXT, &CGISTinView::OnSaveLine2Text)
+	ON_UPDATE_COMMAND_UI(ID_DISPLAY_PATH, &CGISTinView::OnUpdateDisplayPath)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -746,6 +747,8 @@ CGISTinView::CGISTinView()
 	nStartPointID = nEndPointID = -1;
 	pSurfaceTypePackage = NULL;
 	pDEMPackage = NULL;
+	m_pDelaunayEdge = NULL;
+	m_nDeEdgeCount = 0;
 
 	fTinMinX = fTinMinY = 0;
 	for (int i = 0; i < MAX_COLOR_NUM; i++) {
@@ -781,7 +784,17 @@ CGISTinView::~CGISTinView()
 {
 	if(Point)
 		delete[] Point;
-	
+	if (pStartPoint)
+		delete pStartPoint;
+	if(pEndPoint)
+		delete pEndPoint;
+	if (pSurfaceTypePackage)
+		pSurfaceTypePackage->Reset();
+	if (pDEMPackage)
+		pDEMPackage->Reset();
+	if (m_pDelaunayEdge)
+		delete[]m_pDelaunayEdge;
+
 }
 
 BOOL CGISTinView::PreCreateWindow(CREATESTRUCT& cs)
@@ -1775,6 +1788,8 @@ bool SetRasterFieldInfor2(int& ndivision, int&nThreadNum, Raster_Infor& rasterIn
 void CGISTinView::PDTranslateToSite(PointSet *Data, int num, Point2d* &ps, int &nPoints)
 {
 	nPoints = num;
+	if (ps)
+		delete[]ps;
 	ps = new Point2d[nPoints];
 	for (int i = 0; i < num; i ++)
 	{
@@ -1798,7 +1813,7 @@ void TotalTime(clock_t start, double& duration, bool bDisplayMessage = true)
 void CGISTinView::OnGenerateDelaunay() 
 {
 	int nPoints;
-	Point2d *ps;
+	Point2d *ps = NULL;
 	PDTranslateToSite(Point, pointNumber, ps, nPoints);
 	//1.直接生成三角网(测试时间)
 	double duration = 0;
@@ -1838,7 +1853,7 @@ void CGISTinView::OnGenerateDelaunay()
 	AfxMessageBox(str);
 
 	PointLineTopoConstruct();
-	RefreshScreen();	
+	//RefreshScreen();	
 }
 
 void CGISTinView::CalculateEdgeLength(DCEL* pEdge)
@@ -2640,10 +2655,6 @@ void CGISTinView::CreateLinePath() {
 		id = PointData[id].parent;
 	}
 	memcpy(pPathPoints + count, PointData + nStartPointID, sizeof(MyPoint));
-	//窗口重绘
-	CRect Rect;
-	GetClientRect(&Rect);
-	InvalidateRect(&Rect);
 }
 
 // 按照MyPoint的accu字段进行升序排序
@@ -2695,6 +2706,8 @@ void CGISTinView::OnCreatePath()
 		PointData[i].visited = false;
 	}
 	CreateLinePath();
+
+	RefreshScreen();
 }
 
 void CGISTinView::OnRasterOpen()
@@ -3411,15 +3424,80 @@ public:
 	}
 };
 
+void GenerateRandomPointCollection(MyPoint* pNewPoints, int origin_num, int total_num)
+{
+	if (origin_num == 0) return;
+	const int GridRowCount = 2000, GridColCount = 2000;
+	double x_min = pNewPoints[0].x, y_min = pNewPoints[0].y;
+	double x_max = pNewPoints[0].x, y_max = pNewPoints[0].y;
+	for (int i = 1; i < origin_num; i++)
+	{
+		if (x_min > pNewPoints[i].x)	x_min = pNewPoints[i].x;
+		if (y_min > pNewPoints[i].y)	y_min = pNewPoints[i].y;
+		if (x_max < pNewPoints[i].x)	x_max = pNewPoints[i].x;
+		if (y_max < pNewPoints[i].y)	y_max = pNewPoints[i].y;
+	}
+	double GridXSize = (x_max - x_min) / GridColCount;
+	double GridYSize = (y_max - y_min) / GridRowCount;
+
+	bitset<1>** accupy = new bitset<1>*[GridRowCount];
+	for (int i = 0; i < GridRowCount; i++)
+	{
+		accupy[i] = new  bitset<1>[GridColCount];
+		for (int j = 0; j < GridColCount; j++)
+		{
+			accupy[i][j] = 0;
+		}
+	}
+	
+
+	//bitset<1> accupy[GridRowCount][GridColCount];
+	for (int i = 0; i < origin_num; i++)
+	{
+		int x = (pNewPoints[i].x - x_min) / GridXSize;
+		int y = (pNewPoints[i].y - y_min) / GridYSize;
+
+		//assert(accupy[y][x] == 0);
+		if (x < 0) x = 0;
+		if (x > GridColCount - 1) x = GridColCount - 1;
+		if (y < 0) y = 0;
+		if (y > GridRowCount - 1) y = GridRowCount - 1;
+		accupy[y][x] = 1;
+	}
+	
+	int currCount = origin_num;
+	while (currCount < total_num)
+	{
+		int rnd_x = rand() % GridColCount;
+		int rnd_y = rand() % GridRowCount;
+		if (accupy[rnd_y][rnd_x] == 1)	continue;
+		pNewPoints[currCount].x = (rnd_x + 0.5) * GridXSize + x_min;
+		//pNewPoints[currCount].x += double(rand()) / RAND_MAX * GridXSize;
+		pNewPoints[currCount].y = (rnd_y + 0.5) * GridYSize + y_min;
+		//pNewPoints[currCount].y += double(rand()) / RAND_MAX * GridYSize;
+		accupy[rnd_y][rnd_x] = 1;
+		currCount++;
+	}
+
+	for (int i = 0; i < GridRowCount; i++)
+	{
+		delete []accupy[i];
+	}
+	delete[]accupy;
+}
+
 void CGISTinView::OnPointDensify()
 {
 	if (nPathPointNum == 0) return;
 	double times = 5;
-	CInputDataDialog dataDlg("Dialog Caption", "加密倍数：", "5");
+	CString szTimes;
+	szTimes.Format("%.1lf",times);
+	CInputDataDialog dataDlg("Dialog Caption", "加密倍数：", szTimes);
 	if (dataDlg.DoModal() == IDOK)
 	{
 		times = dataDlg.GetReturnValue();
 	}
+
 	bool *visited = new bool[pointNumber];
 	memset(visited, 0, pointNumber * sizeof(bool));
 	vector<Point2d> vecPoints;
@@ -3473,54 +3551,6 @@ void CGISTinView::OnPointDensify()
 	vector<MyPoint>::iterator iter = unique(vecMyPoints.begin(), vecMyPoints.end(), unique_shedhold_1E_N6<MyPoint>);
 	vecMyPoints.erase(iter, vecMyPoints.end());
 
-	//int origin_num = vecMyPoints.size();
-	//int total_num = origin_num * 5;
-
-	//double x, y;
-	//while (vecMyPoints.size() < total_num) {
-	//	srand(time(NULL));
-	//	for (int i = vecMyPoints.size(); i < total_num; ) {
-	//		int idx1 = (int)(rand() / (RAND_MAX + 1.0) * i) % RAND_MAX;
-	//		int idx2 = (int)(rand() / (RAND_MAX + 1.0) * i) % RAND_MAX;
-	//		if (idx1 == idx2) {
-	//			continue;
-	//		}
-	//		double x0 = vecMyPoints[idx1].x;
-	//		double y0 = vecMyPoints[idx1].y;
-	//		double x1 = vecMyPoints[idx2].x;
-	//		double y1 = vecMyPoints[idx2].y;
-	//		GenerateRandomPoint(x0, y0, x1, y1, x, y);
-	//		MyPoint point(x, y);
-	//		vecMyPoints.push_back(point);
-	//	}
-	//	// 去重
-	//	sort(vecMyPoints.begin(), vecMyPoints.end(), point_cmp<MyPoint>);
-	//    vecMyPoints.erase(unique(vecMyPoints.begin(), vecMyPoints.end(), unique_shedhold_1E_0<MyPoint>), vecMyPoints.end());
-	//	vecMyPoints.shrink_to_fit();
-	//}
-
-	//MyPoint *pNewPoints = new MyPoint[total_num];
-	////set<MyPoint, setMyPoint_Lesser> setMyPoints;
-	//for (int i = 0; i < vecMyPoints.size(); i++) {
-	//	pNewPoints[i].x = vecMyPoints[i].x;
-	//	pNewPoints[i].y = vecMyPoints[i].y;
-
-	//	//重新确定起点与终点的ID
-	//	if (vecMyPoints[i].x == pEndPoint->x && vecMyPoints[i].y == pEndPoint->y) {
-	//		nEndPointID = i;
-	//	}
-	//	if (vecMyPoints[i].x == pStartPoint->x && vecMyPoints[i].y == pStartPoint->y) {
-	//		nStartPointID = i;
-	//	}
-	//}
-
-	//CString str1;
-	//str1.Format("EndPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nEndPointID, pPathPoints[0].x, pPathPoints[0].y, vecMyPoints[nEndPointID].x, vecMyPoints[nEndPointID].y);
-	//AfxMessageBox(str1);
-
-	//str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, vecMyPoints[nPathPointNum - 1].y, vecMyPoints[nStartPointID].x, PointData[nStartPointID].y);
-	//AfxMessageBox(str1);
-
 	int origin_num = vecMyPoints.size();
 
 	int total_num = int(origin_num * times);
@@ -3546,32 +3576,8 @@ void CGISTinView::OnPointDensify()
 		}
 	}
 
-	//nStartPointID = vecPoints.size() - 1;
-	//nEndPointID = nPathPointNum + vecPoints.size() - 1;
-
-	double x, y;
-	for (int i = origin_num; i < total_num; ) {
-		int idx1 = rand() % i;
-		int idx2 = rand() % i;
-		if (idx1 == idx2) {
-			continue;
-		}
-		double x0 = pNewPoints[idx1].x;
-		double y0 = pNewPoints[idx1].y;
-		double x1 = pNewPoints[idx2].x;
-		double y1 = pNewPoints[idx2].y;
-		GenerateRandomPoint(x0, y0, x1, y1, x, y);
-		int k = 0;
-		for (; k < i; k++) {
-			double dis = DistanceOfTwoPoints(pNewPoints[k].x, pNewPoints[k].y, x, y);
-			if (dis < MIN_DIS_VALUE)
-				break;
-		}
-		if (k != i)	continue;
-		pNewPoints[i].x = x;
-		pNewPoints[i++].y = y;
-	}
-
+	GenerateRandomPointCollection(pNewPoints, origin_num, total_num);
+	
 	delete[]PointData;
 	PointData = pNewPoints;
 	pointNumber = total_num;
@@ -3641,9 +3647,7 @@ void CGISTinView::OnPointDensify()
 	ChangeDelaunayEdgeResistance();
 	OnCreatePath();
 
-	CRect Rect;
-	GetClientRect(&Rect);
-	InvalidateRect(&Rect);
+	RefreshScreen();
 }
 
 //HBITMAP CopyScreenToBitmap(LPRECT lpRect)
@@ -3715,6 +3719,13 @@ void CGISTinView::OnDisplayPath()
 	RefreshScreen();
 }
 
+
+
+void CGISTinView::OnUpdateDisplayPath(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(m_DisplayResultPath);
+}
+
 void CGISTinView::OnSetting()
 {
 	// TODO: 在此添加命令处理程序代码
@@ -3770,7 +3781,7 @@ double CGISTinView::find_value_by_int_int(map<pair<int, int>, double, map_comp> 
 		return iter->second;
 	}
 	else
-		return -1;
+		return 1;
 }
 
 void CGISTinView::TableConvertion(std::vector<pair<int, std::vector<std::vector<CString> > > >& collection) {
@@ -4074,7 +4085,7 @@ void CGISTinView::OnSaveLine2Text()
 void CGISTinView::OnTinGeneration()
 {
 	int nPoints;
-	Point2d *ps;
+	Point2d *ps = NULL; 
 	PDTranslateToSite(Point, pointNumber, ps, nPoints);
 	//1.直接生成三角网(测试时间)
 	double duration = 0;
@@ -4100,6 +4111,8 @@ void CGISTinView::OnTinGeneration()
 	fprintf(fp, "%d   %.4f   %.4f\n", pointNumber, m_dReadFileTime, duration);
 	fclose(fp);
 
+	if (m_pDelaunayEdge)
+		delete[]m_pDelaunayEdge;
 	m_pDelaunayEdge = new DCEL*[pointNumber * 3];
 	//3.收集边
 	if (maxEdge.le != NULL)
@@ -4116,5 +4129,6 @@ void CGISTinView::OnTinGeneration()
 	PointLineTopoConstruct();
 	RefreshScreen();
 }
+
 
 
