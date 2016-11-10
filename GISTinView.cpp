@@ -488,13 +488,14 @@ void CGISTinView::SavePointsToTextFile(const char *filename, MyPoint* pData, int
 	fclose(fp);
 }
 
-
+CString fieldHeaders[] = { _T("time"), _T("speed"), _T("vitality") };
 void CGISTinView::SaveShapeFile(const char *filename, MyPoint* pData, int count) {
 	::OGRRegisterAll();
 	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
 	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
 	OGRDataSource *poDS = poDriver->CreateDataSource(filename);
 	OGRLayer *poLayer = poDS->CreateLayer(filename, NULL, wkbPoint);
+
 	OGRFieldDefn ogrField("NO", OFTInteger);
 	ogrField.SetWidth(10);
 	poLayer->CreateField(&ogrField);
@@ -502,6 +503,7 @@ void CGISTinView::SaveShapeFile(const char *filename, MyPoint* pData, int count)
 	for (int i = 0; i < count; ++i) {
 		OGRFeature *poFeature = OGRFeature::CreateFeature(poLayer->GetLayerDefn());
 		poFeature->SetField("NO", i);
+
 		OGRPoint point;
 		point.setX(pData[i].x);
 		point.setY(pData[i].y);
@@ -525,10 +527,7 @@ void CGISTinView::SaveShapeFile(const char *filename, DCEL** pData, int count) {
 	OGRDataSource *poDS = poDriver->CreateDataSource(filename);
 	OGRLayer *poLayer = poDS->CreateLayer(filename, NULL, wkbLineString);
 
-	OGRFieldDefn ogrField("resistance", OFTReal);
-	ogrField.SetWidth(10);
-	ogrField.SetPrecision(3);
-	poLayer->CreateField(&ogrField);
+	const int field_header_length = 3;
 
 	OGRFieldDefn ogrField2("type", OFTInteger);
 	ogrField2.SetWidth(10);
@@ -544,12 +543,21 @@ void CGISTinView::SaveShapeFile(const char *filename, DCEL** pData, int count) {
 	ogrField4.SetPrecision(3);
 	poLayer->CreateField(&ogrField4);
 
+	for (int k = 0; k < field_header_length; k++) {
+		OGRFieldDefn ogrField5(fieldHeaders[k], OFTReal);
+		ogrField5.SetWidth(10);
+		ogrField5.SetPrecision(3);
+		poLayer->CreateField(&ogrField5);
+	}
+
 	for (int i = 0; i < count; ++i) {
 		OGRFeature *poFeature = OGRFeature::CreateFeature(poLayer->GetLayerDefn());
-		poFeature->SetField("resistance", pData[i]->resistance);
 		poFeature->SetField("type", pData[i]->type);
 		poFeature->SetField("length", pData[i]->length);
 		poFeature->SetField("slope", pData[i]->slope);
+		for (int k = 0; k < field_header_length; k++) {
+			poFeature->SetField(fieldHeaders[k], pData[i]->resistance[k]);
+		}
 
 		OGRLineString pLine;
 		OGRPoint P0, P1;
@@ -581,6 +589,8 @@ CGISTinView::CGISTinView()
 {
 	MIN_DIS_VALUE = 1.0;
 	MAX_DIS_VALUE = 5.0;
+
+	targetIndex = 0;
 
 	OperateID=0;  zoomratio=1; 	Captured=FALSE; 	
 	m_hZoomIn=AfxGetApp()->LoadCursor(IDC_ZOOMIN);
@@ -1303,7 +1313,7 @@ void CGISTinView::DrawDelaunay(CDC *pDC, DCEL **pEdge, long nCount, COLORREF col
 	{
 		COLOR color = BLACK;
 		DCEL *pdecl = pEdge[i];
-		iter = m_ColorRefTable.find(pdecl->resistance);
+		iter = m_ColorRefTable.find(pdecl->resistance[targetIndex]);
 		if (iter != m_ColorRefTable.end()) {
 			color = (COLOR)iter->second;
 		}
@@ -1322,7 +1332,7 @@ void CGISTinView::DrawDelaunay(CDC *pDC, DCEL **pEdge, long nCount, COLORREF col
 				}
 			} while (iter != m_ColorRefTable.end());
 			color = (COLOR)rnd;
-			m_ColorRefTable[pdecl->resistance] = rnd;
+			m_ColorRefTable[pdecl->resistance[targetIndex]] = rnd;
 			
 		}
 		PNT P1 = {pdecl->e[0].oData->x, pdecl->e[0].oData->y};
@@ -1853,7 +1863,7 @@ void CGISTinView::OnGenerateDelaunay()
 	AfxMessageBox(str);
 
 	PointLineTopoConstruct();
-	//RefreshScreen();	
+	RefreshScreen();	
 }
 
 void CGISTinView::CalculateEdgeLength(DCEL* pEdge)
@@ -2349,8 +2359,7 @@ void CGISTinView::PointLineTopoConstruct() {
 	pTopoPointCollection.Destroy();
 	for (int i = 0; i<pointNumber; i++)
 	{
-		Point2d p2d(Point[i].x, Point[i].y);
-		mHashTable.insert(make_pair(p2d, i));
+		mHashTable.insert(make_pair(make_pair(Point[i].x, Point[i].y), i));
 	}
 
 	pTopoPointCollection.Initialize(pointNumber);
@@ -2359,8 +2368,8 @@ void CGISTinView::PointLineTopoConstruct() {
 		
 		DCEL *pdecl = m_pDelaunayEdge[i];
 		CalculateEdgeLength(pdecl); //计算边的欧式长度
-		int idx1 = mHashTable[*(pdecl->e[0].oData)]; //已解决//哈希函数有点问题
-		int idx2 = mHashTable[*(pdecl->e[1].oData)];
+		int idx1 = mHashTable[make_pair(pdecl->e[0].oData->x, (pdecl->e[0].oData)->y)]; //已解决//哈希函数有点问题
+		int idx2 = mHashTable[make_pair(pdecl->e[1].oData->x, (pdecl->e[1].oData)->y)];
 		//int idx1 = (mHashTable.find(*(pdecl->e[0].oData)))->second; 
 		//int idx2 = (mHashTable.find(*(pdecl->e[1].oData)))->second;
 		//int idx1 = GetPointIDByXY(pdecl->e[0].oData->x, pdecl->e[0].oData->y); //逐点查找，很慢
@@ -2548,7 +2557,7 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, const char* szFileName) {
 			OGRErr poErr = poLayer->Intersection(poNewLayer, poResLayer);
 			if (poErr == OGRERR_NONE) {
 				if (poResLayer->GetFeatureCount()) {
-					pEdges[i]->resistance = 1;
+					pEdges[i]->resistance[targetIndex] = 1;
 					poResLayer->DeleteFeature(0);
 				}
 			}
@@ -2575,20 +2584,18 @@ void CGISTinView::CreateLinePath() {
 	quePointID.insert(&PointData[nStartPointID]);
 	PointData[nStartPointID].visited = true;
 	while (!quePointID.empty()) {
-		Point2d pt((*quePointID.begin())->x, (*quePointID.begin())->y);
-		int PID = mHashTable[pt]; //TODO:应该选取最小累积量的节点
+		int PID = mHashTable[make_pair((*quePointID.begin())->x, (*quePointID.begin())->y)]; //TODO:应该选取最小累积量的节点
 		TopoPoint& CurrPoint = pTopoPointCollection[PID];
 		for (int i = 0; i < CurrPoint.nLineCount; i++) {
 			long LID = CurrPoint.pConnectLineIDs[i];
 			DCEL *pLine = m_pDelaunayEdge[LID];
 			//控制哪些属性不可通行
 			if (pLine != NULL) { // && (pLine->resistance < 3) && (pLine->resistance >= 0)) {//pLine->resistance != 3) || (pLine->resistance != 5)) { 
-				Point2d P0(pLine->e[0].oData->x, pLine->e[0].oData->y);
-				Point2d P1(pLine->e[1].oData->x, pLine->e[1].oData->y);
-				int idx1 = mHashTable[P0];
-				int idx2 = mHashTable[P1];
+
+				int idx1 = mHashTable[make_pair(pLine->e[0].oData->x, pLine->e[0].oData->y)];
+				int idx2 = mHashTable[make_pair(pLine->e[1].oData->x, pLine->e[1].oData->y)];
 				if (!PointData[idx1].visited) {
-					double dis = pLine->length * pLine->resistance;  // todo:
+					double dis = pLine->length * pLine->resistance[targetIndex];  // todo:
 					if (PointData[idx1].parent == -1) {
 						PointData[idx1].parent = PID;
 						PointData[idx1].accu = dis + PointData[PID].accu;
@@ -2600,7 +2607,7 @@ void CGISTinView::CreateLinePath() {
 					}
 				}
 				if (!PointData[idx2].visited) {
-					double dis = pLine->length * pLine->resistance;
+					double dis = pLine->length * pLine->resistance[targetIndex];
 					if (PointData[idx2].parent == -1) {
 						PointData[idx2].parent = PID;
 						PointData[idx2].accu = dis + PointData[PID].accu;
@@ -3506,8 +3513,7 @@ void CGISTinView::OnPointDensify()
 	xmax = ymax = INT_MIN;
 	for (int i = 0; i < nPathPointNum; i++) {
 		MyPoint& pPoint = pPathPoints[i];
-		Point2d point(pPoint.x, pPoint.y);
-		int PID = mHashTable[point];
+		int PID = mHashTable[make_pair(pPoint.x, pPoint.y)];
 		if (pPoint.x < xmin)  xmin = pPoint.x;
 		if (pPoint.x > xmax)  xmax = pPoint.x;
 		if (pPoint.y < ymin)  ymin = pPoint.y;
@@ -3517,12 +3523,8 @@ void CGISTinView::OnPointDensify()
 			int LID = pTopoPointCollection[PID].pConnectLineIDs[k];
 			DCEL *pEdge = m_pDelaunayEdge[LID];
 
-			point.x = pEdge->e[1].oData->x;
-			point.y = pEdge->e[1].oData->y;
-			int P1 = mHashTable[point];
-			point.x = pEdge->e[0].oData->x;
-			point.y = pEdge->e[0].oData->y;
-			int P2 = mHashTable[point];
+			int P1 = mHashTable[make_pair(pEdge->e[1].oData->x,pEdge->e[1].oData->y)];
+			int P2 = mHashTable[make_pair(pEdge->e[0].oData->x, pEdge->e[0].oData->y)];
 			if (!visited[P1]) {
 				if (pEdge->e[0].oData->x == pPathPoints[i].x && pEdge->e[0].oData->y == pPathPoints[i].y) {
 					vecPoints.push_back(*pEdge->e[1].oData);
@@ -3739,6 +3741,7 @@ void CGISTinView::OnSetting()
 		//std::map<pair<int, int>, double> surface_slope_table;
 		std::vector<pair<int, std::vector<std::vector<CString> > > > collection = paradlg.full_table;
 		
+		targetIndex = target_id;
 		TableConvertion(collection); // vector<CString>转为vector<pair<int, double> >;
 		ChangeDelaunayEdgeResistance();
 		RefreshScreen();
@@ -3771,7 +3774,7 @@ void CGISTinView::ChangeDelaunayEdgeResistance()
 		int surf = m_pDelaunayEdge[i]->type;
 		m_pDelaunayEdge[i]->slope = CalculateEdgeSlopeByXYZ(m_pDelaunayEdge[i]);
 		int slop = ReclassOfSlopeByTable(m_pDelaunayEdge[i]->slope, slope_IdTable);
-		m_pDelaunayEdge[i]->resistance = find_value_by_int_int(surf_slopeTable, surf, slop);
+		m_pDelaunayEdge[i]->resistance[targetIndex] = find_value_by_int_int(surf_slopeTable, surf, slop);
 	}
 }
 
@@ -3901,6 +3904,32 @@ void CGISTinView::OnEndPointSave()
 	AfxMessageBox("保存完毕！");
 }
 
+DCEL* CGISTinView::FindDelaunayLineByXY(double x1, double y1, double x2, double y2)
+{
+	int ptIdx = mHashTable[make_pair(x1, y1)];
+	TopoPoint& pTopoPoint = pTopoPointCollection[ptIdx];
+	int nConnectedLineCount = pTopoPoint.nLineCount;
+	for (int k = 0; k < nConnectedLineCount; k++)
+	{
+		int lineIdx = pTopoPoint.pConnectLineIDs[k];
+		DCEL *pDeLine = m_pDelaunayEdge[lineIdx];
+		if (pDeLine->e[0].oData->x == x1 && pDeLine->e[0].oData->y == y1)
+		{
+			if (pDeLine->e[1].oData->x == x2 && pDeLine->e[1].oData->y == y2)
+			{
+				return pDeLine;
+			}
+		}
+		if (pDeLine->e[1].oData->x == x1 && pDeLine->e[1].oData->y == y1)
+		{
+			if (pDeLine->e[0].oData->x == x2 && pDeLine->e[0].oData->y == y2)
+			{
+				return pDeLine;
+			}
+		}
+	}
+	return NULL;
+}
 
 void CGISTinView::OnResultPathSave()
 {
@@ -3946,6 +3975,12 @@ void CGISTinView::OnResultPathSave()
 	ogrField.SetWidth(10);
 	poLayer->CreateField(&ogrField);
 
+
+	OGRFieldDefn ogrField2(fieldHeaders[targetIndex], OFTReal);
+	ogrField2.SetWidth(10);
+	poLayer->CreateField(&ogrField2);
+	
+
 	for (int i = 0; i < nPathPointNum - 1; ++i) {
 		OGRFeature *poFeature = OGRFeature::CreateFeature(poLayer->GetLayerDefn());
 		OGRLineString pLine;
@@ -3961,6 +3996,12 @@ void CGISTinView::OnResultPathSave()
 		pLine.setPoint(0, &P0);
 		pLine.setPoint(1, &P1);
 
+		DCEL* pDeLine = FindDelaunayLineByXY(pPathPoints[i].x, pPathPoints[i].y, pPathPoints[i + 1].x, pPathPoints[i + 1].y);
+		poFeature->SetField("NO", i); // 
+		double resistance = 0;
+		if (pDeLine != NULL)
+			resistance = pDeLine->resistance[targetIndex];
+		poFeature->SetField(fieldHeaders[targetIndex], resistance); // 
 		poFeature->SetGeometry(&pLine);
 
 		if (poLayer->CreateFeature(poFeature) != OGRERR_NONE) {

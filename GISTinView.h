@@ -83,6 +83,21 @@ struct hash_cmp {
 	}
 };
 
+// 为pair<double, double> 写的两个函数
+struct hash_func_pair_double {
+	size_t operator() (const pair<double, double>& PNT2d) const
+	{
+		return hash<double>()(PNT2d.first) + (hash<double>()(PNT2d.second) >> 4);
+	}
+};
+
+struct hash_cmp_pair_double {
+	bool operator() (const pair<double, double>& P1, const pair<double, double>& P2) const
+	{
+		return P1.first == P2.first && P1.second == P2.second;
+	}
+};
+
 struct MultisetLess {
 	bool operator() (MyPoint *P1, MyPoint *P2) const
 	{
@@ -134,7 +149,9 @@ private:
    MyPoint *pPathPoints;           // 存放结果数据点
    long nPathPointNum;             // 路径点个数
    TopoPointCollection pTopoPointCollection;//点线的拓扑信息
-   unordered_map<Point2d, int, hash_func, hash_cmp> mHashTable;
+   //unordered_map<Point2d, int, hash_func, hash_cmp> mHashTable;
+   unordered_map<pair<double, double>, int, hash_func_pair_double, hash_cmp_pair_double> mHashTable;
+
    vector<pair<vector<PNT>, double> > m_vecInputSHPGroups;
    MyDataPackage *pSurfaceTypePackage, *pDEMPackage;
    double fTinMinX, fTinMinY;
@@ -149,6 +166,9 @@ private:
 public:
    double MIN_DIS_VALUE;
    double MAX_DIS_VALUE;
+
+   int targetIndex;   // 0 时间最少； 1 速度最大； 2 体力最少。
+                    
 
 public:
 //1.函数成员定义(窗口操作)
@@ -213,6 +233,7 @@ public:
    template<typename DT>
    bool CGISTinView::LineOfSight(int x1, int y1, int x2, int y2, DT *pData, int nWidth, int nHeight);
 
+   DCEL* FindDelaunayLineByXY(double x1, double y1, double x2, double y2);
 protected:
 	
 	// create from serialization only
