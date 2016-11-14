@@ -206,6 +206,7 @@ public:
    void UpdateTinZValueByDEM(DCEL **pEdges, int count, MyDataPackage* pPackage);
    void AssignEdgeAttribute(DCEL ** pEdges, const char * szFileName);
    void CreateLinePath();
+   void CreateLinePath2();
    void AccuSort(vector<int>& vec, int left, int right);
    void OnPathConstruction();
 

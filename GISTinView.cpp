@@ -2664,6 +2664,101 @@ void CGISTinView::CreateLinePath() {
 	memcpy(pPathPoints + count, PointData + nStartPointID, sizeof(MyPoint));
 }
 
+
+void CGISTinView::CreateLinePath2() {
+	if ((nStartPointID == -1) || (nEndPointID == -1)) return;
+	//AssignEdgeAttribute(m_pDelaunayEdge, "E:\\快盘\\开阔空间的通行路径分析\\测试点\\shps\\grass_land.shp");
+	clock_t t1 = clock();
+	std::multiset<MyPoint*, MultisetLess> quePointID;
+	quePointID.insert(&PointData[nStartPointID]);
+	PointData[nStartPointID].visited = true;
+	while (!quePointID.empty()) {
+		int PID = mHashTable[make_pair((*quePointID.begin())->x, (*quePointID.begin())->y)]; //TODO:应该选取最小累积量的节点
+		TopoPoint& CurrPoint = pTopoPointCollection[PID];
+		for (int i = 0; i < CurrPoint.nLineCount; i++) {
+			long LID = CurrPoint.pConnectLineIDs[i];
+			DCEL *pLine = m_pDelaunayEdge[LID];
+			//控制哪些属性不可通行
+			if (pLine != NULL) { // && (pLine->resistance < 3) && (pLine->resistance >= 0)) {//pLine->resistance != 3) || (pLine->resistance != 5)) { 
+				double edge_attr = pLine->resistance[targetIndex];
+				if (fabs(edge_attr) < 1e-6)
+				{
+					edge_attr = 1e-6;
+				}
+				edge_attr = 1 / edge_attr;
+				int idx1 = mHashTable[make_pair(pLine->e[0].oData->x, pLine->e[0].oData->y)];
+				int idx2 = mHashTable[make_pair(pLine->e[1].oData->x, pLine->e[1].oData->y)];
+				if (!PointData[idx1].visited) {
+					double dis = pLine->length * edge_attr;  // todo:
+					if (PointData[idx1].parent == -1) {
+						PointData[idx1].parent = PID;
+						PointData[idx1].accu = dis + PointData[PID].accu;
+						quePointID.insert(&PointData[idx1]);
+					}
+					else if (PointData[idx1].accu > dis + PointData[PID].accu) {
+						PointData[idx1].accu = dis + PointData[PID].accu;
+						PointData[idx1].parent = PID;
+					}
+				}
+				if (!PointData[idx2].visited) {
+					double dis = pLine->length * edge_attr;
+					if (PointData[idx2].parent == -1) {
+						PointData[idx2].parent = PID;
+						PointData[idx2].accu = dis + PointData[PID].accu;
+						quePointID.insert(&PointData[idx2]);
+					}
+					else if (PointData[idx2].accu > dis + PointData[PID].accu) {
+						PointData[idx2].accu = dis + PointData[PID].accu;
+						PointData[idx2].parent = PID;
+					}
+				}
+
+			}
+		}
+
+		PointData[PID].visited = true;
+		quePointID.erase(quePointID.begin());
+		//if (quePointID.size() >= 2) {
+		//	AccuSort(quePointID, 0, quePointID.size() - 1);
+		//}
+
+		//sort(quePointID.begin(), quePointID.end(), AccuCompare);
+		//sort(quePointID.begin(), quePointID.end(), [=](long& ID1, long &ID2) {return PointData[ID1].accu <= PointData[ID2].accu; });
+		//quePointID.pop();
+	}
+	CString cstr;
+
+	clock_t t2 = clock();
+	cstr.Format("最短路径计算时间: %.3lf s.\n", double(t2 - t1) / 1000.);
+	AfxMessageBox(cstr);
+
+	cstr.Format(" ");
+	int id = nEndPointID;
+	int count = 1;
+	while (id != nStartPointID) {
+		count++;
+		cstr.AppendFormat("%d\t", id);
+		id = PointData[id].parent;
+	}
+	cstr.AppendFormat("%d\t", nStartPointID);
+	AfxMessageBox(cstr);
+
+	// 保存路径点
+	if (pPathPoints) {
+		delete[] pPathPoints;
+	}
+	pPathPoints = new MyPoint[count];
+	nPathPointNum = count;
+	count = 0;
+	id = nEndPointID;
+	while (id != nStartPointID) {
+		memcpy(pPathPoints + count++, PointData + id, sizeof(MyPoint));
+		id = PointData[id].parent;
+	}
+	memcpy(pPathPoints + count, PointData + nStartPointID, sizeof(MyPoint));
+}
+
+
 // 按照MyPoint的accu字段进行升序排序
 void CGISTinView::AccuSort(vector<int> &vec, int left, int right)
 {
@@ -2712,8 +2807,18 @@ void CGISTinView::OnCreatePath()
 		PointData[i].parent = -1;
 		PointData[i].visited = false;
 	}
-	CreateLinePath();
 
+	switch (targetIndex)
+	{
+	case 0:
+	case 2:
+		CreateLinePath();
+		break;
+	case 1:
+		CreateLinePath2();
+		break;
+	}
+	
 	RefreshScreen();
 }
 
