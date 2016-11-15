@@ -2662,6 +2662,33 @@ void CGISTinView::CreateLinePath() {
 		id = PointData[id].parent;
 	}
 	memcpy(pPathPoints + count, PointData + nStartPointID, sizeof(MyPoint));
+
+	DCEL* pResultLines = NULL;
+	double total_time = 0;
+	double total_length = 0;
+	double total_calories = 0;
+
+	if (targetIndex == 0) 
+	{
+		for (int i = 0; i < nPathPointNum - 1; i++) {
+			pResultLines = FindDelaunayLineByXY(pPathPoints[i].x, pPathPoints[i].y, pPathPoints[i + 1].x, pPathPoints[i + 1].y);
+			double length = cos(pResultLines->slope * 3.1415926 / 180) * pResultLines->length;
+			total_length += length;
+			total_time += length * (pResultLines->resistance[targetIndex]) * 3.6;
+		}
+		cstr.Format("%.2lf m, %.2lf s.", total_length, total_time);
+	}
+	if (targetIndex == 2)
+	{
+		for (int i = 0; i < nPathPointNum - 1; i++) {
+			pResultLines = FindDelaunayLineByXY(pPathPoints[i].x, pPathPoints[i].y, pPathPoints[i + 1].x, pPathPoints[i + 1].y);
+			double length = cos(pResultLines->slope * 3.1415926 / 180) * pResultLines->length;
+			total_length += length;
+			total_calories += length * (pResultLines->resistance[targetIndex]) * 3.6;
+		}
+		cstr.Format("%.2lf m, %.2lf ¿¨.", total_length, total_calories);
+	}
+	AfxMessageBox(cstr);
 }
 
 
@@ -2756,6 +2783,19 @@ void CGISTinView::CreateLinePath2() {
 		id = PointData[id].parent;
 	}
 	memcpy(pPathPoints + count, PointData + nStartPointID, sizeof(MyPoint));
+	
+	DCEL* pResultLines = NULL;
+	double total_time = 0;
+	double total_length = 0;
+	for (int i = 0; i < nPathPointNum - 1; i++) {
+		pResultLines = FindDelaunayLineByXY(pPathPoints[i].x, pPathPoints[i].y, pPathPoints[i + 1].x, pPathPoints[i + 1].y);
+		double length = cos(pResultLines->slope * 3.1415926 / 180) * pResultLines->length;
+		total_length += length;
+		total_time +=  length / (pResultLines->resistance[targetIndex] / 3.6);
+	}
+
+	cstr.Format("%.2lf m, %.2lf s", total_length, total_time);
+	AfxMessageBox(cstr);
 }
 
 
