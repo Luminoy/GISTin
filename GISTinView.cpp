@@ -64,6 +64,9 @@ BEGIN_MESSAGE_MAP(CGISTinView, CView)
 	ON_COMMAND(ID_RESULT_PATH_TXT, &CGISTinView::OnResultPath2Text)
 	ON_COMMAND(ID_SAVE_LINE_TXT, &CGISTinView::OnSaveLine2Text)
 	ON_UPDATE_COMMAND_UI(ID_DISPLAY_PATH, &CGISTinView::OnUpdateDisplayPath)
+	ON_COMMAND(ID_NEIBOR_TIN, &CGISTinView::OnNeiborTinSave)
+	ON_COMMAND(ID_DENSIFY_RASTER, &CGISTinView::OnDensify_Raster)
+	ON_COMMAND(ID_DENSIFY_NEIBOR_TIN, &CGISTinView::OnDensify_NeiborTin)
 END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
@@ -444,7 +447,7 @@ template<typename POINT>
 bool unique_point_equal(const POINT &P1, const POINT &P2) {
 	return ((abs(p1.x - p2.x) <= 1e-6) && (abs(p1.y - p2.y) <= 1e-6));
 }
-bool triangle_comp(const Triangle &T1, const Triangle& T2)
+bool triangle_vertex_comp(const Triangle &T1, const Triangle& T2)
 {
 	if (T1.P1 < T2.P1) return true;
 	else if (T1.P1 > T2.P1)	return false;
@@ -452,6 +455,12 @@ bool triangle_comp(const Triangle &T1, const Triangle& T2)
 	{
 		return (T1.P2 < T2.P2) || ((T1.P2 == T2.P2) && (T1.P3 < T2.P3));
 	}
+}
+
+// 三角形面积由大到小排序
+bool triangle_area_comp(const Triangle &T1, const Triangle& T2)
+{
+	return T1.area > T2.area;
 }
 
 bool unique_triangle_fun(const Triangle &T1, const Triangle& T2)
@@ -523,8 +532,8 @@ void CGISTinView::SaveShapeFile(const char *filename, MyPoint* pData, int count)
 		poFeature->SetField("NO", i);
 
 		OGRPoint point;
-		point.setX(pData[i].x);
-		point.setY(pData[i].y);
+		point.setX(pData[i].x + fTinMinX);
+		point.setY(pData[i].y + fTinMinY);
 		poFeature->SetGeometry(&point);
 
 		if (poLayer->CreateFeature(poFeature) != OGRERR_NONE) {
@@ -608,6 +617,7 @@ CGISTinView::CGISTinView()
 	MIN_DIS_VALUE = 1.0;
 	MAX_DIS_VALUE = 5.0;
 
+	fTriTotalArea = 0;
 	targetIndex = 0;
 
 	OperateID=0;  zoomratio=1; 	Captured=FALSE; 	
@@ -1244,8 +1254,6 @@ void CGISTinView::DrawGraph(CDC*pDC)
 	{
 		DrawResultPath(pDC, pPathPoints, nPathPointNum);
 	}
-
-	
 	
 }
 
@@ -1561,10 +1569,48 @@ void CGISTinView::DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count) {
 	if (pPathPoints == NULL || count == 0) {
 		return;
 	}
-	CPen Pen;
-	Pen.CreatePen(PS_SOLID, 2, colors[BLACK]);
-	CPen *pOldPen = pDC->SelectObject(&Pen);
 	PNT P1, P2;
+	CPen Pen2;
+	Pen2.CreatePen(PS_SOLID, 2, colors[RED]);
+	pDC->SelectObject(&Pen2);
+	for (int k = 0; k < vecTriangle.size(); k++)
+	{
+		Triangle& tri = vecTriangle[k];
+
+		P1.x = PointData[tri.P1].x;
+		P1.y = PointData[tri.P1].y;
+		GetScreenPoint(&P1);
+
+		P2.x = PointData[tri.P2].x;
+		P2.y = PointData[tri.P2].y;
+		GetScreenPoint(&P2);
+		pDC->MoveTo(P1.x, P1.y);
+		pDC->LineTo(P2.x, P2.y);
+
+		P1.x = PointData[tri.P1].x;
+		P1.y = PointData[tri.P1].y;
+		GetScreenPoint(&P1);
+
+		P2.x = PointData[tri.P3].x;
+		P2.y = PointData[tri.P3].y;
+		GetScreenPoint(&P2);
+		pDC->MoveTo(P1.x, P1.y);
+		pDC->LineTo(P2.x, P2.y);
+
+		P1.x = PointData[tri.P3].x;
+		P1.y = PointData[tri.P3].y;
+		GetScreenPoint(&P1);
+
+		P2.x = PointData[tri.P2].x;
+		P2.y = PointData[tri.P2].y;
+		GetScreenPoint(&P2);
+		pDC->MoveTo(P1.x, P1.y);
+		pDC->LineTo(P2.x, P2.y);
+	}
+
+	CPen Pen;
+	Pen.CreatePen(PS_SOLID, 3, colors[BLACK]);
+	CPen *pOldPen = pDC->SelectObject(&Pen);
 	P1.x = pPathPoints[0].x;
 	P1.y = pPathPoints[0].y;
 	GetScreenPoint(&P1);
@@ -1577,6 +1623,9 @@ void CGISTinView::DrawResultPath(CDC* pDC, MyPoint* pPathPoints, int count) {
 		P1.x = P2.x;
 		P1.y = P2.y;
 	}
+
+
+
 	pDC->SelectObject(pOldPen);
 }
 
@@ -2969,7 +3018,7 @@ void CGISTinView::OnCreatePath()
 		break;
 	}
 	
-	sort(vecTriangle.begin(), vecTriangle.end(), triangle_comp);
+	sort(vecTriangle.begin(), vecTriangle.end(), triangle_vertex_comp);
 	vector<Triangle>::iterator iter = unique(vecTriangle.begin(), vecTriangle.end(), unique_triangle_fun);
 	vecTriangle.erase(iter, vecTriangle.end());
 
@@ -2979,6 +3028,8 @@ void CGISTinView::OnCreatePath()
 	{
 		total_area_size += vecTriangle[k].area;
 	}
+	fTriTotalArea = total_area_size;
+
 	RefreshScreen();
 }
 
@@ -3758,6 +3809,37 @@ void GenerateRandomPointCollection(MyPoint* pNewPoints, int origin_num, int tota
 	delete[]accupy;
 }
 
+void CGISTinView::GenerateRandomPointCollectionInsideTriangle(MyPoint* pNewPoints, int origin_num, int total_num)
+{
+	if (origin_num == 0) return;
+	int extra_num = total_num - origin_num;
+	int nTriCount = vecTriangle.size();
+	double part = extra_num / fTriTotalArea;
+
+	sort(vecTriangle.begin(), vecTriangle.end(), triangle_area_comp);
+	for (int k = 0; k < nTriCount; k++)
+	{
+		Triangle& tri = vecTriangle[k];
+		int count = ceil(tri.area * part);
+		for (int i = 0; i < count; i++)
+		{
+			srand(time(NULL));
+			double percent = rand() / double(RAND_MAX + 1);
+			double dx = PointData[tri.P2].x - PointData[tri.P1].x;
+			double dy = PointData[tri.P2].y - PointData[tri.P1].y;
+			double newX = PointData[tri.P1].x + percent * dx;
+			double newY = PointData[tri.P1].y + percent * dy;
+			dx = PointData[tri.P3].x - newX;
+			dy = PointData[tri.P3].y - newY;
+			percent = rand() / double(RAND_MAX + 1);
+			pNewPoints[origin_num].x = newX + percent * dx;
+			pNewPoints[origin_num].y = newY + percent * dy;
+			origin_num++;
+			if (origin_num == total_num)	return;
+		}
+	}
+}
+
 void CGISTinView::OnPointDensify()
 {
 	if (nPathPointNum == 0) return;
@@ -3804,7 +3886,7 @@ void CGISTinView::OnPointDensify()
 			}
 		}
 	}
-	vector<MyPoint> vecMyPoints = AppendPointsInRectangleArea(xmin, xmax, ymin, ymax);
+	vector<MyPoint> vecMyPoints;// = AppendPointsInRectangleArea(xmin, xmax, ymin, ymax);
 
 	for (int i = 0; i < vecPoints.size(); i++) {
 		MyPoint point;
@@ -3843,8 +3925,9 @@ void CGISTinView::OnPointDensify()
 		}
 	}
 
-	GenerateRandomPointCollection(pNewPoints, origin_num, total_num);
-	
+	//GenerateRandomPointCollection(pNewPoints, origin_num, total_num);
+	GenerateRandomPointCollectionInsideTriangle(pNewPoints, origin_num, total_num);
+
 	delete[]PointData;
 	PointData = pNewPoints;
 	pointNumber = total_num;
@@ -4438,3 +4521,412 @@ void CGISTinView::OnTinGeneration()
 
 
 
+
+
+void CGISTinView::OnNeiborTinSave()
+{
+	int nTriCount = vecTriangle.size();
+	if (nTriCount == 0) {
+		AfxMessageBox("未计算路径！");
+		return;
+	}
+
+	CString  TheFileName;
+	CFileDialog  FileDlg(FALSE, NULL, "output_neibo_tin.shp", OFN_HIDEREADONLY | OFN_ENABLESIZING, "shapefile(*.shp)|*.shp||", AfxGetMainWnd());
+
+	if (FileDlg.DoModal() == IDOK)
+		TheFileName = FileDlg.GetPathName();
+	else
+		return;
+
+	if (PathFileExists(TheFileName))
+	{
+		int retCode = AfxMessageBox(_T("该位置下已存在同名文件！是否覆盖？"), MB_YESNOCANCEL);
+		if (retCode == IDYES)
+		{
+			DeleteAllFilesByName(FileDlg.GetFolderPath(), FileDlg.GetFileName(), exts, 7);
+		}
+		else if (retCode == IDNO)
+		{
+			AfxMessageBox("保存失败！");
+			return;
+		}
+		else
+		{
+			AfxMessageBox("保存已取消！");
+			return;
+		}
+	}
+
+	::OGRRegisterAll();
+	CPLSetConfigOption("GDAL_FILENAME_IS_UTF8", "NO");
+	OGRSFDriver *poDriver = OGRSFDriverRegistrar::GetRegistrar()->GetDriverByName("ESRI Shapefile");
+	OGRDataSource *poDS = poDriver->CreateDataSource(TheFileName);
+	OGRLayer *poLayer = poDS->CreateLayer(TheFileName.GetBuffer(), NULL, wkbLineString);
+	OGRFieldDefn ogrField("NO", OFTInteger);
+	ogrField.SetWidth(10);
+	poLayer->CreateField(&ogrField);
+
+
+	OGRFieldDefn ogrField2(fieldHeaders[targetIndex], OFTReal);
+	ogrField2.SetWidth(10);
+	poLayer->CreateField(&ogrField2);
+
+
+	for (int i = 0; i < nTriCount; ++i) {
+		OGRFeature *poFeature = OGRFeature::CreateFeature(poLayer->GetLayerDefn());
+		OGRLineString pLine;
+		OGRPoint P1, P2, P3;
+		pLine.setNumPoints(2);
+		
+		Triangle &tri = vecTriangle[i];
+
+		P1.setX(PointData[tri.P1].x + fTinMinX);
+		P1.setY(PointData[tri.P1].y + fTinMinY);
+
+		P2.setX(PointData[tri.P2].x + fTinMinX);
+		P2.setY(PointData[tri.P2].y + fTinMinY);
+		
+		P3.setX(PointData[tri.P3].x + fTinMinX);
+		P3.setY(PointData[tri.P3].y + fTinMinY);
+
+		pLine.setPoint(0, &P1);
+		pLine.setPoint(1, &P2);
+		pLine.setPoint(2, &P3);
+
+		pLine.closeRings();
+		poFeature->SetGeometry(&pLine);
+
+		if (poLayer->CreateFeature(poFeature) != OGRERR_NONE) {
+			AfxMessageBox("创建矢量数据出错！");
+			return;
+		}
+		OGRFeature::DestroyFeature(poFeature);
+	}
+
+	OGRDataSource::DestroyDataSource(poDS);
+	OGRCleanupAll();
+
+	AfxMessageBox("保存完毕！");
+}
+
+
+void CGISTinView::OnDensify_Raster()
+{
+	if (nPathPointNum == 0) return;
+	double times = 5;
+	CString szTimes;
+	szTimes.Format("%.1lf", times);
+	CInputDataDialog dataDlg("Dialog Caption", "加密倍数：", szTimes);
+	if (dataDlg.DoModal() == IDOK)
+	{
+		times = dataDlg.GetReturnValue();
+	}
+
+	bool *visited = new bool[pointNumber];
+	memset(visited, 0, pointNumber * sizeof(bool));
+	vector<Point2d> vecPoints;
+	double xmin, xmax, ymin, ymax;
+	xmin = ymin = INT_MAX;
+	xmax = ymax = INT_MIN;
+	for (int i = 0; i < nPathPointNum; i++) {
+		MyPoint& pPoint = pPathPoints[i];
+		int PID = mHashTable[make_pair(pPoint.x, pPoint.y)];
+		if (pPoint.x < xmin)  xmin = pPoint.x;
+		if (pPoint.x > xmax)  xmax = pPoint.x;
+		if (pPoint.y < ymin)  ymin = pPoint.y;
+		if (pPoint.y > ymax)  ymax = pPoint.y;
+		//visited[PID] = true;           //bug!! 导致终止点未加入点集！！
+		for (int k = 0; k < pTopoPointCollection[PID].nLineCount; k++) {
+			int LID = pTopoPointCollection[PID].pConnectLineIDs[k];
+			DCEL *pEdge = m_pDelaunayEdge[LID];
+
+			int P1 = mHashTable[make_pair(pEdge->e[1].oData->x, pEdge->e[1].oData->y)];
+			int P2 = mHashTable[make_pair(pEdge->e[0].oData->x, pEdge->e[0].oData->y)];
+			if (!visited[P1]) {
+				if (pEdge->e[0].oData->x == pPathPoints[i].x && pEdge->e[0].oData->y == pPathPoints[i].y) {
+					vecPoints.push_back(*pEdge->e[1].oData);
+					visited[P1] = true;
+				}
+			}
+			if (!visited[P2]) {
+				if (pEdge->e[1].oData->x == pPathPoints[i].x && pEdge->e[1].oData->y == pPathPoints[i].y) {
+					vecPoints.push_back(*pEdge->e[0].oData);
+					visited[P2] = true;
+				}
+			}
+		}
+	}
+	vector<MyPoint> vecMyPoints = AppendPointsInRectangleArea(xmin, xmax, ymin, ymax);
+
+	for (int i = 0; i < vecPoints.size(); i++) {
+		MyPoint point;
+		point.x = vecPoints[i].x;
+		point.y = vecPoints[i].y;
+		vecMyPoints.push_back(point);
+	}
+	vecPoints.clear();
+	// 去重
+	sort(vecMyPoints.begin(), vecMyPoints.end(), point_cmp<MyPoint>);
+	vector<MyPoint>::iterator iter = unique(vecMyPoints.begin(), vecMyPoints.end(), unique_shedhold_1E_N6<MyPoint>);
+	vecMyPoints.erase(iter, vecMyPoints.end());
+
+	int origin_num = vecMyPoints.size();
+
+	int total_num = int(origin_num * times);
+	MyPoint *pNewPoints = new MyPoint[total_num];
+
+	CString str1;
+	str1.Format("EndPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nEndPointID, pPathPoints[0].x, pPathPoints[0].y, PointData[nEndPointID].x, PointData[nEndPointID].y);
+	AfxMessageBox(str1);
+
+	str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y, PointData[nStartPointID].x, PointData[nStartPointID].y);
+	AfxMessageBox(str1);
+
+	for (int i = 0; i < vecMyPoints.size(); i++) {
+		pNewPoints[i].x = vecMyPoints[i].x;
+		pNewPoints[i].y = vecMyPoints[i].y;
+
+		//重新确定起点与终点的ID
+		if (vecMyPoints[i].x == pPathPoints[0].x && vecMyPoints[i].y == pPathPoints[0].y) {
+			nEndPointID = i;
+		}
+		if (vecMyPoints[i].x == pPathPoints[nPathPointNum - 1].x && vecMyPoints[i].y == pPathPoints[nPathPointNum - 1].y) {
+			nStartPointID = i;
+		}
+	}
+
+	GenerateRandomPointCollection(pNewPoints, origin_num, total_num);
+
+	delete[]PointData;
+	PointData = pNewPoints;
+	pointNumber = total_num;
+
+	CString cstr;
+	cstr.Format("重新加密后点的数目: %d\n", total_num);
+	AfxMessageBox(cstr);
+
+	OnGenerateDelaunay();
+
+	if (pDEMPackage)
+	{
+		switch (pDEMPackage->nDataType)
+		{
+		case 1:
+			UpdateTinZValueByDEM<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 2:
+			UpdateTinZValueByDEM<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 3:
+			UpdateTinZValueByDEM<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 4:
+			UpdateTinZValueByDEM<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 5:
+			UpdateTinZValueByDEM<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 6:
+			UpdateTinZValueByDEM<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		default:
+			UpdateTinZValueByDEM<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		}
+	}
+
+	if (pSurfaceTypePackage)
+	{
+		switch (pSurfaceTypePackage->nDataType)
+		{
+		case 1:
+			AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 2:
+			AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 3:
+			AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 4:
+			AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 5:
+			AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 6:
+			AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		default:
+			AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		}
+	}
+
+	ChangeDelaunayEdgeResistance();
+	OnCreatePath();
+
+	RefreshScreen();
+}
+
+
+void CGISTinView::OnDensify_NeiborTin()
+{
+	if (nPathPointNum == 0) return;
+	double times = 5;
+	CString szTimes;
+	szTimes.Format("%.1lf", times);
+	CInputDataDialog dataDlg("Dialog Caption", "加密倍数：", szTimes);
+	if (dataDlg.DoModal() == IDOK)
+	{
+		times = dataDlg.GetReturnValue();
+	}
+
+	bool *visited = new bool[pointNumber];
+	memset(visited, 0, pointNumber * sizeof(bool));
+	vector<Point2d> vecPoints;
+	double xmin, xmax, ymin, ymax;
+	xmin = ymin = INT_MAX;
+	xmax = ymax = INT_MIN;
+	for (int i = 0; i < nPathPointNum; i++) {
+		MyPoint& pPoint = pPathPoints[i];
+		int PID = mHashTable[make_pair(pPoint.x, pPoint.y)];
+		if (pPoint.x < xmin)  xmin = pPoint.x;
+		if (pPoint.x > xmax)  xmax = pPoint.x;
+		if (pPoint.y < ymin)  ymin = pPoint.y;
+		if (pPoint.y > ymax)  ymax = pPoint.y;
+		//visited[PID] = true;           //bug!! 导致终止点未加入点集！！
+		for (int k = 0; k < pTopoPointCollection[PID].nLineCount; k++) {
+			int LID = pTopoPointCollection[PID].pConnectLineIDs[k];
+			DCEL *pEdge = m_pDelaunayEdge[LID];
+
+			int P1 = mHashTable[make_pair(pEdge->e[1].oData->x, pEdge->e[1].oData->y)];
+			int P2 = mHashTable[make_pair(pEdge->e[0].oData->x, pEdge->e[0].oData->y)];
+			if (!visited[P1]) {
+				if (pEdge->e[0].oData->x == pPathPoints[i].x && pEdge->e[0].oData->y == pPathPoints[i].y) {
+					vecPoints.push_back(*pEdge->e[1].oData);
+					visited[P1] = true;
+				}
+			}
+			if (!visited[P2]) {
+				if (pEdge->e[1].oData->x == pPathPoints[i].x && pEdge->e[1].oData->y == pPathPoints[i].y) {
+					vecPoints.push_back(*pEdge->e[0].oData);
+					visited[P2] = true;
+				}
+			}
+		}
+	}
+	vector<MyPoint> vecMyPoints;// = AppendPointsInRectangleArea(xmin, xmax, ymin, ymax);
+
+	for (int i = 0; i < vecPoints.size(); i++) {
+		MyPoint point;
+		point.x = vecPoints[i].x;
+		point.y = vecPoints[i].y;
+		vecMyPoints.push_back(point);
+	}
+	vecPoints.clear();
+	// 去重
+	sort(vecMyPoints.begin(), vecMyPoints.end(), point_cmp<MyPoint>);
+	vector<MyPoint>::iterator iter = unique(vecMyPoints.begin(), vecMyPoints.end(), unique_shedhold_1E_N6<MyPoint>);
+	vecMyPoints.erase(iter, vecMyPoints.end());
+
+	int origin_num = vecMyPoints.size();
+
+	int total_num = int(origin_num * times);
+	MyPoint *pNewPoints = new MyPoint[total_num];
+
+	CString str1;
+	str1.Format("EndPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nEndPointID, pPathPoints[0].x, pPathPoints[0].y, PointData[nEndPointID].x, PointData[nEndPointID].y);
+	AfxMessageBox(str1);
+
+	str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y, PointData[nStartPointID].x, PointData[nStartPointID].y);
+	AfxMessageBox(str1);
+
+	for (int i = 0; i < vecMyPoints.size(); i++) {
+		pNewPoints[i].x = vecMyPoints[i].x;
+		pNewPoints[i].y = vecMyPoints[i].y;
+
+		//重新确定起点与终点的ID
+		if (vecMyPoints[i].x == pPathPoints[0].x && vecMyPoints[i].y == pPathPoints[0].y) {
+			nEndPointID = i;
+		}
+		if (vecMyPoints[i].x == pPathPoints[nPathPointNum - 1].x && vecMyPoints[i].y == pPathPoints[nPathPointNum - 1].y) {
+			nStartPointID = i;
+		}
+	}
+
+	//GenerateRandomPointCollection(pNewPoints, origin_num, total_num);
+	GenerateRandomPointCollectionInsideTriangle(pNewPoints, origin_num, total_num);
+
+	delete[]PointData;
+	PointData = pNewPoints;
+	pointNumber = total_num;
+
+	CString cstr;
+	cstr.Format("重新加密后点的数目: %d\n", total_num);
+	AfxMessageBox(cstr);
+
+	OnGenerateDelaunay();
+
+	if (pDEMPackage)
+	{
+		switch (pDEMPackage->nDataType)
+		{
+		case 1:
+			UpdateTinZValueByDEM<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 2:
+			UpdateTinZValueByDEM<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 3:
+			UpdateTinZValueByDEM<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 4:
+			UpdateTinZValueByDEM<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 5:
+			UpdateTinZValueByDEM<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		case 6:
+			UpdateTinZValueByDEM<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		default:
+			UpdateTinZValueByDEM<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pDEMPackage);
+			break;
+		}
+	}
+
+	if (pSurfaceTypePackage)
+	{
+		switch (pSurfaceTypePackage->nDataType)
+		{
+		case 1:
+			AssignEdgeAttribute<DT_8U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 2:
+			AssignEdgeAttribute<DT_16U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 3:
+			AssignEdgeAttribute<DT_16S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 4:
+			AssignEdgeAttribute<DT_32U>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 5:
+			AssignEdgeAttribute<DT_32S>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		case 6:
+			AssignEdgeAttribute<DT_32F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		default:
+			AssignEdgeAttribute<DT_64F>(m_pDelaunayEdge, m_nDeEdgeCount, pSurfaceTypePackage);
+			break;
+		}
+	}
+
+	ChangeDelaunayEdgeResistance();
+	OnCreatePath();
+
+	RefreshScreen();
+}

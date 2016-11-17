@@ -140,11 +140,16 @@ BEGIN
             MENUITEM "终点",                          ID_END_PT
             MENUITEM "结果路径",                        ID_RESULT_PATH
             MENUITEM "结果路径(TXT)",                   ID_RESULT_PATH_TXT
+            MENUITEM "结果路径邻域三角网",                   ID_NEIBOR_TIN
         END
         MENUITEM SEPARATOR
         MENUITEM "生成三角网",                       ID_TIN_GENERATION
         MENUITEM "最短路径生成",                      ID_CREATEPATH
-        MENUITEM "缩小点集并加密",                     ID_POINT_DENSIFY
+        POPUP "缩小点集并加密"
+        BEGIN
+            MENUITEM "栅格条带插入法",                     ID_DENSIFY_RASTER
+            MENUITEM "邻域三角网插入法",                    ID_DENSIFY_NEIBOR_TIN
+        END
     END
     POPUP "栅格数据"
     BEGIN

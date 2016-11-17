@@ -193,9 +193,12 @@ class Triangle
 public:
 	Triangle() {}
 	Triangle(int _P1, int _P2, int _P3, double _area) :P1(_P1), P2(_P2), P3(_P3), area(_area) {}
-	int hashCode;
+
 	int P1, P2, P3;
 	double area;
+	static double totalArea;
+	
+	int hashCode;
 	int calHashCode(int a, int b, int c)
 	{
 		a -= b; a -= c; a ^= (c >> 13);
@@ -210,6 +213,7 @@ public:
 		return c;
 	}
 };
+
 //class TopoPointCollection {
 //public:
 //	int nPointCount;

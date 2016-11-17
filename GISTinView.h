@@ -170,7 +170,7 @@ public:
    int targetIndex;   // 0 时间最少； 1 速度最大； 2 体力最少。
                    
    vector<Triangle> vecTriangle;
-   
+   double fTriTotalArea;
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -346,6 +346,7 @@ public:
 	void CGISTinView::GenerateRandomPoint(double x0, double y0, double x1, double y1, double &x, double &y);
 	inline double DistanceOfTwoPoints(double x1, double y1, double x2, double y2);
 	vector<MyPoint> AppendPointsInRectangleArea(double xmin, double xmax, double ymin, double ymax );
+	void GenerateRandomPointCollectionInsideTriangle(MyPoint * pNewPoints, int origin_num, int total_num);
 	void OnPointDensify();
 	afx_msg void OnSavePoint();
 	afx_msg void OnSaveLine();
@@ -363,6 +364,9 @@ public:
 	afx_msg void OnResultPath2Text();
 	afx_msg void OnSaveLine2Text();
 	afx_msg void OnUpdateDisplayPath(CCmdUI *pCmdUI);
+	afx_msg void OnNeiborTinSave();
+	afx_msg void OnDensify_Raster();
+	afx_msg void OnDensify_NeiborTin();
 };
 
 #ifndef _DEBUG  // debug version in GISTinView.cpp

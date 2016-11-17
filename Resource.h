@@ -96,13 +96,20 @@
 #define ID_SAVE_LINE_TXT                32856
 #define ID_32857                        32857
 #define ID_TEST                         32858
+#define ID_32859                        32859
+#define ID_NEIBOR_TIN                   32860
+#define ID_32861                        32861
+#define ID_32862                        32862
+#define ID_DENSIFY_RASTER               32863
+#define ID_DENSIFY_TIN                  32864
+#define ID_DENSIFY_NEIBOR_TIN           32865
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        157
-#define _APS_NEXT_COMMAND_VALUE         32859
+#define _APS_NEXT_COMMAND_VALUE         32866
 #define _APS_NEXT_CONTROL_VALUE         1021
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
