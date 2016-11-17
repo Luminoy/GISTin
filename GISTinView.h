@@ -168,8 +168,9 @@ public:
    double MAX_DIS_VALUE;
 
    int targetIndex;   // 0 时间最少； 1 速度最大； 2 体力最少。
-                    
-
+                   
+   vector<Triangle> vecTriangle;
+   
 public:
 //1.函数成员定义(窗口操作)
    void LoadFile(int Type);
@@ -205,6 +206,8 @@ public:
    template<typename DT>
    void UpdateTinZValueByDEM(DCEL **pEdges, int count, MyDataPackage* pPackage);
    void AssignEdgeAttribute(DCEL ** pEdges, const char * szFileName);
+   void SortConnectPointByAspect(double x, double y);
+   double calTriangleArea(int P1, int P2, int P3);
    void CreateLinePath();
    void CreateLinePath2();
    void AccuSort(vector<int>& vec, int left, int right);

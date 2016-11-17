@@ -106,16 +106,19 @@ class TopoPoint {
 public:
 	int nLineCount;
 	vector<int> pConnectLineIDs;
+	vector<int> pConnectPointIDs;
 	TopoPoint(): nLineCount(0) {  }
 	// 摊还策略，动态分配存储空间
-	void AddLineID(int nLID) {
+	void AddLineID(int nLID, int nPID = -1) {
 		nLineCount++;
 		pConnectLineIDs.push_back(nLID);
+		if (nPID != -1)	pConnectPointIDs.push_back(nPID);
 	}
 
 	void DestroyInstance() {
 		nLineCount = 0;
 		pConnectLineIDs.clear();
+		pConnectPointIDs.clear();
 	}
 
 	~TopoPoint() {
@@ -185,6 +188,28 @@ public:
 	}
 };
 
+class Triangle
+{
+public:
+	Triangle() {}
+	Triangle(int _P1, int _P2, int _P3, double _area) :P1(_P1), P2(_P2), P3(_P3), area(_area) {}
+	int hashCode;
+	int P1, P2, P3;
+	double area;
+	int calHashCode(int a, int b, int c)
+	{
+		a -= b; a -= c; a ^= (c >> 13);
+		b -= c; b -= a; b ^= (a << 8);
+		c -= a; c -= b; c ^= (b >> 13);
+		a -= b; a -= c; a ^= (c >> 12); 
+		b -= c; b -= a; b ^= (a << 16);
+		c -= a; c -= b; c ^= (b >> 5);
+		a -= b; a -= c; a ^= (c >> 3); 
+		b -= c; b -= a; b ^= (a << 10); 
+		c -= a; c -= b; c ^= (b >> 15); 
+		return c;
+	}
+};
 //class TopoPointCollection {
 //public:
 //	int nPointCount;

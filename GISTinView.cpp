@@ -444,6 +444,24 @@ template<typename POINT>
 bool unique_point_equal(const POINT &P1, const POINT &P2) {
 	return ((abs(p1.x - p2.x) <= 1e-6) && (abs(p1.y - p2.y) <= 1e-6));
 }
+bool triangle_comp(const Triangle &T1, const Triangle& T2)
+{
+	if (T1.P1 < T2.P1) return true;
+	else if (T1.P1 > T2.P1)	return false;
+	else
+	{
+		return (T1.P2 < T2.P2) || ((T1.P2 == T2.P2) && (T1.P3 < T2.P3));
+	}
+}
+
+bool unique_triangle_fun(const Triangle &T1, const Triangle& T2)
+{
+	if ((T1.P1 == T2.P1) && (T1.P2 == T2.P2) && (T1.P3 == T2.P3))
+	{
+		return true;
+	}
+	return false;
+}
 
 void CGISTinView::ElimiateDuplicatePoints(vector<PNT> &PNTSet) {
 	int prev_count = PNTSet.size();
@@ -967,11 +985,16 @@ void CGISTinView::OnLButtonUp(UINT nFlags, CPoint point)
 		}
 		if (pid != -1) {
 			CString cstr;
-			cstr.AppendFormat("与该点关联的线段数量: %d\n.", pTopoPointCollection[pid].nLineCount);
+			cstr.AppendFormat("当前点ID: %d.\n", pid);
+			cstr.AppendFormat("与该点关联的点数量: %d.\n", pTopoPointCollection[pid].nLineCount);
+			for (int j = 0; j < pTopoPointCollection[pid].nLineCount; j++) {
+				cstr.AppendFormat("%d: %d\n", j, pTopoPointCollection[pid].pConnectPointIDs[j]);
+			}
+			AfxMessageBox(cstr);
+			cstr.Format("与该点关联的线段数量: %d.\n", pTopoPointCollection[pid].nLineCount);
 			for (int j = 0; j < pTopoPointCollection[pid].nLineCount; j++) {
 				cstr.AppendFormat("%d: %d\n", j, pTopoPointCollection[pid].pConnectLineIDs[j]);
 			}
-			AfxMessageBox(cstr);
 		}
 		break;
     default: break;
@@ -1871,7 +1894,7 @@ void CGISTinView::CalculateEdgeLength(DCEL* pEdge)
 	if (!pEdge)	return;
 	int dx = pEdge->e[0].oData->x - pEdge->e[1].oData->x;
 	int dy = pEdge->e[0].oData->y - pEdge->e[1].oData->y;
-	pEdge->length = sqrt(dx * dx + dy * dy); // 单位km
+	pEdge->length = sqrt(dx * dx + dy * dy); // 单位m
 }
 
 void CGISTinView::OnParallelGenerateTin() 
@@ -2365,17 +2388,20 @@ void CGISTinView::PointLineTopoConstruct() {
 	pTopoPointCollection.Initialize(pointNumber);
 	for (int i = 0; i < m_nDeEdgeCount; i++)
 	{
-		
 		DCEL *pdecl = m_pDelaunayEdge[i];
+		double x0 = pdecl->e[0].oData->x;
+		double y0 = pdecl->e[0].oData->y;
+		double x1 = pdecl->e[1].oData->x;
+		double y1 = pdecl->e[1].oData->y;
 		CalculateEdgeLength(pdecl); //计算边的欧式长度
-		int idx1 = mHashTable[make_pair(pdecl->e[0].oData->x, (pdecl->e[0].oData)->y)]; //已解决//哈希函数有点问题
-		int idx2 = mHashTable[make_pair(pdecl->e[1].oData->x, (pdecl->e[1].oData)->y)];
+		int idx1 = mHashTable[make_pair(x0, y0)]; //已解决//哈希函数有点问题
+		int idx2 = mHashTable[make_pair(x1, y1)];
 		//int idx1 = (mHashTable.find(*(pdecl->e[0].oData)))->second; 
 		//int idx2 = (mHashTable.find(*(pdecl->e[1].oData)))->second;
 		//int idx1 = GetPointIDByXY(pdecl->e[0].oData->x, pdecl->e[0].oData->y); //逐点查找，很慢
 		//int idx2 = GetPointIDByXY(pdecl->e[1].oData->x, pdecl->e[1].oData->y);
-		pTopoPointCollection.pTopoPoints[idx1].AddLineID(i);
-		pTopoPointCollection.pTopoPoints[idx2].AddLineID(i);
+		pTopoPointCollection.pTopoPoints[idx1].AddLineID(i, idx2);
+		pTopoPointCollection.pTopoPoints[idx2].AddLineID(i, idx1);
 	}
 
 	clock_t t2 = clock();
@@ -2576,6 +2602,84 @@ void CGISTinView::AssignEdgeAttribute(DCEL **pEdges, const char* szFileName) {
 	OGRCleanupAll();
 }
 
+bool Pair_Int_Double_Compare(pair<int, double> P1, pair<int, double> P2)
+{
+	return P1.second < P2.second;
+}
+
+void vertex_int_3_sort(int& P1, int& P2, int& P3)
+{
+	if (P1 > P2) swap(P1, P2);
+	if (P1 < P3)
+	{
+		if (P2 > P3)
+		{
+			swap(P2, P3);
+		}
+	}
+	else
+	{
+		swap(P1, P3);
+		swap(P1, P2);
+	}
+}
+
+void CGISTinView::SortConnectPointByAspect(double x, double y)
+{
+	int PID0 = mHashTable[make_pair(x, y)];
+	MyPoint& P0 = PointData[PID0];
+	TopoPoint &CurrPoint = pTopoPointCollection.pTopoPoints[PID0];
+	int nCount = CurrPoint.nLineCount;
+	if (nCount <= 0)	return;
+	vector<pair<int, double> > newVec;
+	for (int k = 0; k < nCount; k++)
+	{
+		int PID1 = CurrPoint.pConnectPointIDs[k];
+		MyPoint& P1 = PointData[PID1];
+		double dx = P1.x - P0.x;
+		double dy = P1.y - P0.y;
+		double aspect = atan2(dy, dx);
+		newVec.push_back(make_pair(PID1, aspect));
+	}
+	sort(newVec.begin(), newVec.end(), Pair_Int_Double_Compare);
+	//pTopoPointCollection.pTopoPoints[PID0].pConnectPointIDs[0] = newVec[0].first;
+	for (int k = 0; k < nCount; k++)
+	{
+		pTopoPointCollection.pTopoPoints[PID0].pConnectPointIDs[k] = newVec[k].first;
+		if (k >= 1) 
+		{
+			const int num = 3;
+			int vertex[num] = { PID0, newVec[k - 1].first, newVec[k].first };
+			vertex_int_3_sort(vertex[0], vertex[1], vertex[2]);
+			double area = calTriangleArea(vertex[0], vertex[1], vertex[2]);
+			vecTriangle.push_back(Triangle(vertex[0], vertex[1], vertex[2], area));
+		}
+	}
+	const int num = 3;
+	int vertex[num] = { PID0, newVec[nCount - 1].first, newVec[0].first };
+	sort(vertex, vertex + num - 1);
+	double area = calTriangleArea(vertex[0], vertex[1], vertex[2]);
+	vecTriangle.push_back(Triangle(vertex[0], vertex[1], vertex[2], area));
+	
+}
+
+double CGISTinView::calTriangleArea(int P1, int P2, int P3)
+{
+	double x1 = PointData[P1].x;
+	double y1 = PointData[P1].y;
+	double x2 = PointData[P2].x;
+	double y2 = PointData[P2].y;
+	double x3 = PointData[P3].x;
+	double y3 = PointData[P3].y;
+
+	double dx21 = x2 - x1;
+	double dy21 = y2 - y1;
+	double dx31 = x3 - x1;
+	double dy31 = y3 - y1;
+
+	return fabs(dx21 * dy31 - dy21 * dx31) / 2.0;
+}
+
 void CGISTinView::CreateLinePath() {
 	if ((nStartPointID == -1) || (nEndPointID == -1)) return;
 	//AssignEdgeAttribute(m_pDelaunayEdge, "E:\\快盘\\开阔空间的通行路径分析\\测试点\\shps\\grass_land.shp");
@@ -2671,24 +2775,28 @@ void CGISTinView::CreateLinePath() {
 	if (targetIndex == 0) 
 	{
 		for (int i = 0; i < nPathPointNum - 1; i++) {
+			SortConnectPointByAspect(pPathPoints[i].x, pPathPoints[i].y);
 			pResultLines = FindDelaunayLineByXY(pPathPoints[i].x, pPathPoints[i].y, pPathPoints[i + 1].x, pPathPoints[i + 1].y);
 			double length = cos(pResultLines->slope * 3.1415926 / 180) * pResultLines->length;
 			total_length += length;
 			total_time += length * (pResultLines->resistance[targetIndex]) * 3.6;
 		}
+		SortConnectPointByAspect(pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y);
 		cstr.Format("%.2lf m, %.2lf s.", total_length, total_time);
 	}
 	if (targetIndex == 2)
 	{
 		for (int i = 0; i < nPathPointNum - 1; i++) {
+			SortConnectPointByAspect(pPathPoints[i].x, pPathPoints[i].y);
 			pResultLines = FindDelaunayLineByXY(pPathPoints[i].x, pPathPoints[i].y, pPathPoints[i + 1].x, pPathPoints[i + 1].y);
 			double length = cos(pResultLines->slope * 3.1415926 / 180) * pResultLines->length;
 			total_length += length;
 			total_calories += length * (pResultLines->resistance[targetIndex]) * 3.6;
 		}
+		SortConnectPointByAspect(pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y);
 		cstr.Format("%.2lf m, %.2lf 卡.", total_length, total_calories);
 	}
-	AfxMessageBox(cstr);
+	AfxMessageBox(cstr);	
 }
 
 
@@ -2788,12 +2896,13 @@ void CGISTinView::CreateLinePath2() {
 	double total_time = 0;
 	double total_length = 0;
 	for (int i = 0; i < nPathPointNum - 1; i++) {
+		SortConnectPointByAspect(pPathPoints[i].x, pPathPoints[i].y);
 		pResultLines = FindDelaunayLineByXY(pPathPoints[i].x, pPathPoints[i].y, pPathPoints[i + 1].x, pPathPoints[i + 1].y);
 		double length = cos(pResultLines->slope * 3.1415926 / 180) * pResultLines->length;
 		total_length += length;
 		total_time +=  length / (pResultLines->resistance[targetIndex] / 3.6);
 	}
-
+	SortConnectPointByAspect(pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y);
 	cstr.Format("%.2lf m, %.2lf s", total_length, total_time);
 	AfxMessageBox(cstr);
 }
@@ -2842,6 +2951,7 @@ void CGISTinView::OnPathConstruction()
 
 void CGISTinView::OnCreatePath()
 {
+	vecTriangle.clear();
 	for (int i = 0; i < pointNumber; i++) {
 		PointData[i].accu = 0;
 		PointData[i].parent = -1;
@@ -2859,6 +2969,16 @@ void CGISTinView::OnCreatePath()
 		break;
 	}
 	
+	sort(vecTriangle.begin(), vecTriangle.end(), triangle_comp);
+	vector<Triangle>::iterator iter = unique(vecTriangle.begin(), vecTriangle.end(), unique_triangle_fun);
+	vecTriangle.erase(iter, vecTriangle.end());
+
+	int nTriCount = vecTriangle.size();
+	double total_area_size = 0;
+	for (int k = 0; k < nTriCount; k++)
+	{
+		total_area_size += vecTriangle[k].area;
+	}
 	RefreshScreen();
 }
 

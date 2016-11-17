@@ -94,13 +94,15 @@
 #define ID_RESULT_PATH_TXT              32854
 #define ID_32855                        32855
 #define ID_SAVE_LINE_TXT                32856
+#define ID_32857                        32857
+#define ID_TEST                         32858
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        157
-#define _APS_NEXT_COMMAND_VALUE         32857
+#define _APS_NEXT_COMMAND_VALUE         32859
 #define _APS_NEXT_CONTROL_VALUE         1021
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

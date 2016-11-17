@@ -126,6 +126,7 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "选起点",                         ID_STARTPNT
         MENUITEM "选终点",                         ID_ENDPNT
+        MENUITEM "test",                        ID_TESTCASE
     END
     POPUP "shapefile"
     BEGIN
