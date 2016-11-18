@@ -3817,13 +3817,20 @@ void CGISTinView::GenerateRandomPointCollectionInsideTriangle(MyPoint* pNewPoint
 	double part = extra_num / fTriTotalArea;
 
 	sort(vecTriangle.begin(), vecTriangle.end(), triangle_area_comp);
+
+	unordered_map<pair<double, double>, int, hash_func_pair_double, hash_cmp_pair_double> tmpHashTable;
+	unordered_map<pair<double, double>, int, hash_func_pair_double, hash_cmp_pair_double>::iterator iter = tmpHashTable.begin();
+	for (int k = 0; k < origin_num; k++)
+	{
+		tmpHashTable.insert(make_pair(make_pair(pNewPoints[k].x, pNewPoints[k].y), k));
+	}
 	for (int k = 0; k < nTriCount; k++)
 	{
 		Triangle& tri = vecTriangle[k];
 		int count = ceil(tri.area * part);
+		srand(time(NULL));
 		for (int i = 0; i < count; i++)
 		{
-			srand(time(NULL));
 			double percent = rand() / double(RAND_MAX + 1);
 			double dx = PointData[tri.P2].x - PointData[tri.P1].x;
 			double dy = PointData[tri.P2].y - PointData[tri.P1].y;
@@ -3832,10 +3839,17 @@ void CGISTinView::GenerateRandomPointCollectionInsideTriangle(MyPoint* pNewPoint
 			dx = PointData[tri.P3].x - newX;
 			dy = PointData[tri.P3].y - newY;
 			percent = rand() / double(RAND_MAX + 1);
-			pNewPoints[origin_num].x = newX + percent * dx;
-			pNewPoints[origin_num].y = newY + percent * dy;
-			origin_num++;
-			if (origin_num == total_num)	return;
+			newX = newX + percent * dx;
+			newY = newY + percent * dy;
+			iter = tmpHashTable.find(make_pair(newX, newY));
+			if (iter == tmpHashTable.end())
+			{
+				tmpHashTable.insert(make_pair(make_pair(pNewPoints[k].x, pNewPoints[k].y), origin_num));
+				pNewPoints[origin_num].x = newX;
+				pNewPoints[origin_num].y = newY;
+				origin_num++;
+				if (origin_num == total_num)	return;
+			}
 		}
 	}
 }
@@ -4836,12 +4850,12 @@ void CGISTinView::OnDensify_NeiborTin()
 	int total_num = int(origin_num * times);
 	MyPoint *pNewPoints = new MyPoint[total_num];
 
-	CString str1;
-	str1.Format("EndPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nEndPointID, pPathPoints[0].x, pPathPoints[0].y, PointData[nEndPointID].x, PointData[nEndPointID].y);
-	AfxMessageBox(str1);
+	//CString str1;
+	//str1.Format("EndPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nEndPointID, pPathPoints[0].x, pPathPoints[0].y, PointData[nEndPointID].x, PointData[nEndPointID].y);
+	//AfxMessageBox(str1);
 
-	str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y, PointData[nStartPointID].x, PointData[nStartPointID].y);
-	AfxMessageBox(str1);
+	//str1.Format("StartPoint( %d ): (%.3lf, %.3lf), (%.3lf, %.3lf)\n", nStartPointID, pPathPoints[nPathPointNum - 1].x, pPathPoints[nPathPointNum - 1].y, PointData[nStartPointID].x, PointData[nStartPointID].y);
+	//AfxMessageBox(str1);
 
 	for (int i = 0; i < vecMyPoints.size(); i++) {
 		pNewPoints[i].x = vecMyPoints[i].x;
